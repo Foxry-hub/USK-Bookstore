@@ -86,7 +86,7 @@
                 <div class="flex gap-3 pt-2">
                     @auth
                         @if (!auth()->user()->isAdmin())
-                            <form action="{{ route('cart.add', $book) }}" method="POST" class="w-full">
+                            <form action="{{ route('cart.add', $book) }}" method="POST" class="w-full" data-cart-add>
                                 @csrf
                                 <button type="submit" class="w-full rounded-xl bg-brand-500 px-6 py-3 font-semibold text-white hover:bg-brand-600 transition">
                                     Tambah ke Keranjang
@@ -174,7 +174,7 @@
 
                                 @auth
                                     @if (!auth()->user()->isAdmin())
-                                        <form action="{{ route('cart.add', $relatedBook) }}" method="POST" class="mt-3">
+                                        <form action="{{ route('cart.add', $relatedBook) }}" method="POST" class="mt-3" data-cart-add>
                                             @csrf
                                             <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition">
                                                 Tambah ke Keranjang

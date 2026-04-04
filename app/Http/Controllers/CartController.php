@@ -10,6 +10,21 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CartController extends Controller
 {
+    private function cartPayload(array $cart, array $extra = []): array
+    {
+        $items = collect($cart)->values()->map(function (array $item): array {
+            $item['subtotal'] = $item['price'] * $item['quantity'];
+
+            return $item;
+        })->all();
+
+        return array_merge([
+            'items' => $items,
+            'total' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
+            'cart_count' => collect($cart)->sum('quantity'),
+        ], $extra);
+    }
+
     /**
      * Tampilkan isi keranjang yang disimpan di session.
      */
@@ -44,6 +59,13 @@ class CartController extends Controller
 
         $request->session()->put('cart', $cart);
 
+        if ($request->expectsJson()) {
+            return response()->json($this->cartPayload($cart, [
+                'message' => 'Buku berhasil masuk keranjang.',
+                'book_id' => $book->id,
+            ]));
+        }
+
         return back()->with('success', 'Buku berhasil masuk keranjang.');
     }
 
@@ -65,15 +87,11 @@ class CartController extends Controller
                 $request->session()->put('cart', $cart);
                 $removed = true;
 
-                $total = collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
-
                 if ($request->expectsJson()) {
-                    return response()->json([
+                    return response()->json($this->cartPayload($cart, [
                         'removed' => true,
                         'book_id' => $bookId,
-                        'total' => $total,
-                        'cart_count' => count($cart),
-                    ]);
+                    ]));
                 }
 
                 return back()->with('success', 'Item di keranjang berhasil dihapus.');
@@ -83,16 +101,12 @@ class CartController extends Controller
             $request->session()->put('cart', $cart);
         }
 
-        $total = collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
-
         if ($request->expectsJson()) {
-            return response()->json([
+            return response()->json($this->cartPayload($cart, [
                 'removed' => $removed,
                 'book_id' => $bookId,
                 'quantity' => $cart[$bookId]['quantity'] ?? null,
-                'total' => $total,
-                'cart_count' => count($cart),
-            ]);
+            ]));
         }
 
         return back()->with('success', 'Jumlah item keranjang diperbarui.');
@@ -107,15 +121,11 @@ class CartController extends Controller
         unset($cart[$bookId]);
         $request->session()->put('cart', $cart);
 
-        $total = collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
-
         if ($request->expectsJson()) {
-            return response()->json([
+            return response()->json($this->cartPayload($cart, [
                 'removed' => true,
                 'book_id' => $bookId,
-                'total' => $total,
-                'cart_count' => count($cart),
-            ]);
+            ]));
         }
 
         return back()->with('success', 'Item di keranjang berhasil dihapus.');

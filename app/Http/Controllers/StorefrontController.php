@@ -10,9 +10,21 @@ use Illuminate\View\View;
 class StorefrontController extends Controller
 {
     /**
-     * Landing page + katalog buku dengan fitur search.
+     * Landing page dengan preview katalog.
      */
-    public function index(Request $request): View
+    public function index(): View
+    {
+        return view('store.index', [
+            'featuredBooks' => Book::query()->with('category')->latest()->take(4)->get(),
+            'totalBooks' => Book::count(),
+            'categoriesCount' => Category::count(),
+        ]);
+    }
+
+    /**
+     * Halaman katalog lengkap dengan filter.
+     */
+    public function catalog(Request $request): View
     {
         $query = Book::query()->with('category')->latest();
 
@@ -29,7 +41,7 @@ class StorefrontController extends Controller
             $query->where('category_id', (int) $request->input('category'));
         }
 
-        return view('store.index', [
+        return view('store.catalog', [
             'books' => $query->paginate(8)->withQueryString(),
             'categories' => Category::orderBy('name')->get(),
         ]);

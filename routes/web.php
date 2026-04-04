@@ -12,6 +12,7 @@ use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'index'])->name('store.index');
+Route::get('/catalog', [StorefrontController::class, 'catalog'])->name('store.catalog');
 Route::get('/books/{book}', [StorefrontController::class, 'show'])->name('store.show');
 
 Route::middleware('guest')->group(function (): void {
