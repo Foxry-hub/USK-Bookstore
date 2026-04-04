@@ -41,8 +41,35 @@ class StorefrontController extends Controller
             $query->where('category_id', (int) $request->input('category'));
         }
 
+        $books = $query->get();
+
+        $groupedCategories = $books
+            ->groupBy('category_id')
+            ->map(function ($items): array {
+                /** @var Book $first */
+                $first = $items->first();
+
+                return [
+                    'id' => $first->category?->id,
+                    'name' => $first->category?->name ?? 'Tanpa Kategori',
+                    'books' => $items->values(),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+
+        $activeCategoryId = $request->filled('category') ? (int) $request->input('category') : null;
+        $activeCategoryName = null;
+
+        if ($activeCategoryId) {
+            $activeCategoryName = Category::query()->whereKey($activeCategoryId)->value('name');
+        }
+
         return view('store.catalog', [
-            'books' => $query->paginate(8)->withQueryString(),
+            'groupedCategories' => $groupedCategories,
+            'booksCount' => $books->count(),
+            'activeCategoryId' => $activeCategoryId,
+            'activeCategoryName' => $activeCategoryName,
             'categories' => Category::orderBy('name')->get(),
         ]);
     }

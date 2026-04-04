@@ -31,6 +31,41 @@
         html {
             scroll-behavior: smooth;
         }
+
+        @keyframes cart-pop {
+            0% {
+                transform: scale(1);
+            }
+            45% {
+                transform: scale(1.12);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .cart-pop {
+            animation: cart-pop 220ms ease-out;
+        }
+
+        .cart-item-flash {
+            animation: cart-pop 260ms ease-out;
+        }
+
+        @keyframes cart-fade-out {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+        }
+
+        .cart-removing {
+            animation: cart-fade-out 220ms ease-out forwards;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -130,8 +165,8 @@
 
         @auth
             @if (!auth()->user()->isAdmin())
-                <div id="mini-cart-overlay" class="pointer-events-none fixed inset-0 z-40 bg-slate-950/30 opacity-0 transition-opacity duration-300"></div>
-                <aside id="mini-cart-panel" class="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm translate-y-3 opacity-0 pointer-events-none transition-all duration-300 sm:bottom-6 sm:right-6 sm:w-96">
+                <div id="mini-cart-overlay" class="pointer-events-none fixed inset-0 z-40 bg-slate-950/30 opacity-0 backdrop-blur-[2px] transition-all duration-500 ease-out"></div>
+                <aside id="mini-cart-panel" class="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm translate-y-4 scale-[0.98] opacity-0 pointer-events-none transition-all duration-500 ease-out will-change-transform sm:bottom-6 sm:right-6 sm:w-96">
                     <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5">
                         <div class="border-b border-slate-100 px-5 py-4">
                             <div>
@@ -147,11 +182,14 @@
 
                             <div id="mini-cart-items" class="space-y-3 {{ $miniCartItems->isEmpty() ? 'hidden' : '' }}">
                                 @foreach ($miniCartItems as $item)
-                                    <div class="rounded-2xl bg-slate-50 p-3" data-cart-mini-item="{{ $item['book_id'] }}">
+                                    <div class="rounded-2xl bg-slate-50 p-3 ring-1 ring-transparent transition-all duration-200 hover:ring-brand-300" data-cart-mini-item="{{ $item['book_id'] }}">
                                         <div class="flex gap-3">
                                             <img src="{{ $item['image_url'] ?: 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80' }}" alt="{{ $item['title'] }}" class="h-16 w-12 rounded-lg object-cover">
                                             <div class="min-w-0 flex-1">
-                                                <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $item['title'] }}</p>
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $item['title'] }}</p>
+                                                    <span class="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">x{{ $item['quantity'] }}</span>
+                                                </div>
                                                 <p class="mt-1 text-xs text-slate-500">Rp {{ number_format($item['price'], 0, ',', '.') }}</p>
                                                 <div class="mt-3 flex flex-wrap items-center gap-2">
                                                     <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-1">
@@ -203,8 +241,8 @@
                     return;
                 }
 
-                cartPanel.classList.remove('translate-y-3', 'opacity-0', 'pointer-events-none');
-                cartPanel.classList.add('translate-y-0', 'opacity-100');
+                cartPanel.classList.remove('translate-y-4', 'scale-[0.98]', 'opacity-0', 'pointer-events-none');
+                cartPanel.classList.add('translate-y-0', 'scale-100', 'opacity-100');
                 cartOverlay.classList.remove('opacity-0', 'pointer-events-none');
                 cartOverlay.classList.add('opacity-100');
             };
@@ -214,8 +252,8 @@
                     return;
                 }
 
-                cartPanel.classList.add('translate-y-3', 'opacity-0', 'pointer-events-none');
-                cartPanel.classList.remove('translate-y-0', 'opacity-100');
+                cartPanel.classList.add('translate-y-4', 'scale-[0.98]', 'opacity-0', 'pointer-events-none');
+                cartPanel.classList.remove('translate-y-0', 'scale-100', 'opacity-100');
                 cartOverlay.classList.add('opacity-0', 'pointer-events-none');
                 cartOverlay.classList.remove('opacity-100');
             };
@@ -230,11 +268,14 @@
             })[character]);
 
             const buildMiniCartRow = (item) => `
-                <div class="rounded-2xl bg-slate-50 p-3" data-cart-mini-item="${item.book_id}">
+                <div class="rounded-2xl bg-slate-50 p-3 ring-1 ring-transparent transition-all duration-200 hover:ring-brand-300" data-cart-mini-item="${item.book_id}">
                     <div class="flex gap-3">
                         <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80')}" alt="${escapeHtml(item.title)}" class="h-16 w-12 rounded-lg object-cover">
                         <div class="min-w-0 flex-1">
-                            <p class="line-clamp-2 text-sm font-semibold text-slate-900">${escapeHtml(item.title)}</p>
+                            <div class="flex items-start justify-between gap-3">
+                                <p class="line-clamp-2 text-sm font-semibold text-slate-900">${escapeHtml(item.title)}</p>
+                                <span class="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">x${item.quantity}</span>
+                            </div>
                             <p class="mt-1 text-xs text-slate-500">Rp ${formatCurrency(item.price)}</p>
                             <div class="mt-3 flex flex-wrap items-center gap-2">
                                 <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-1">
@@ -255,7 +296,10 @@
                     <div class="flex items-center gap-4">
                         <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80')}" alt="${escapeHtml(item.title)}" class="h-20 w-16 rounded-lg object-cover">
                         <div>
-                            <h3 class="text-base font-bold text-slate-900">${escapeHtml(item.title)}</h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900">${escapeHtml(item.title)}</h3>
+                                <span class="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">x${item.quantity}</span>
+                            </div>
                             <p class="text-sm text-slate-600">Rp ${formatCurrency(item.price)}</p>
                         </div>
                     </div>
@@ -307,6 +351,55 @@
                 cartPageItems.innerHTML = items.map((item) => buildCartPageRow(item)).join('');
             };
 
+            const highlightItem = (selector) => {
+                const target = document.querySelector(selector);
+
+                if (!target) {
+                    return;
+                }
+
+                target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            };
+
+            const setBookActionState = (bookId, isBusy) => {
+                document.querySelectorAll(`[data-book-id="${bookId}"]`).forEach((button) => {
+                    if (!(button instanceof HTMLButtonElement)) {
+                        return;
+                    }
+
+                    button.disabled = isBusy;
+                    button.classList.toggle('opacity-60', isBusy);
+                    button.classList.toggle('cursor-not-allowed', isBusy);
+                });
+            };
+
+            const animateRemovingItem = (bookId) => {
+                document.querySelectorAll(`[data-cart-mini-item="${bookId}"], [data-cart-item="${bookId}"]`).forEach((element) => {
+                    element.classList.add('cart-removing');
+                });
+            };
+
+            const clearRemovingItem = (bookId) => {
+                document.querySelectorAll(`[data-cart-mini-item="${bookId}"], [data-cart-item="${bookId}"]`).forEach((element) => {
+                    element.classList.remove('cart-removing');
+                });
+            };
+
+            const popElement = (element, className = 'cart-pop') => {
+                if (!element) {
+                    return;
+                }
+
+                element.classList.remove(className);
+                void element.offsetWidth;
+                element.classList.add(className);
+
+                window.clearTimeout(element.__cartPopTimer);
+                element.__cartPopTimer = window.setTimeout(() => {
+                    element.classList.remove(className);
+                }, 280);
+            };
+
             const syncState = (payload, options = {}) => {
                 if (cartTotal && typeof payload.total !== 'undefined') {
                     cartTotal.textContent = `Rp ${formatCurrency(payload.total)}`;
@@ -318,11 +411,21 @@
 
                 if (cartCount && typeof payload.cart_count !== 'undefined') {
                     cartCount.textContent = payload.cart_count;
+                    popElement(cartCount);
                 }
 
                 if (typeof payload.items !== 'undefined') {
                     renderMiniCartItems(payload.items);
                     renderCartPageItems(payload.items);
+                }
+
+                if (payload.book_id && (options.openPanel || payload.removed === false || typeof options.focusItem !== 'undefined')) {
+                    const selector = `[data-cart-mini-item="${payload.book_id}"]`;
+                    highlightItem(selector);
+                }
+
+                if (payload.book_id) {
+                    popElement(document.querySelector(`[data-cart-quantity="${payload.book_id}"]`), 'cart-item-flash');
                 }
 
                 if (options.openPanel) {
@@ -344,6 +447,9 @@
                 const currentQuantity = Number(quantityBadge?.textContent || 1);
 
                 if (action === 'remove') {
+                    setBookActionState(bookId, true);
+                    animateRemovingItem(bookId);
+
                     const response = await fetch(`{{ url('/cart') }}/${bookId}`, {
                         method: 'DELETE',
                         headers: {
@@ -354,6 +460,8 @@
                     });
 
                     if (!response.ok) {
+                        clearRemovingItem(bookId);
+                        setBookActionState(bookId, false);
                         return;
                     }
 
@@ -363,6 +471,8 @@
                 }
 
                 const nextQuantity = action === 'decrease' ? currentQuantity - 1 : currentQuantity + 1;
+
+                setBookActionState(bookId, true);
 
                 const response = await fetch(`{{ url('/cart') }}/${bookId}`, {
                     method: 'PATCH',
@@ -376,11 +486,13 @@
                 });
 
                 if (!response.ok) {
+                    setBookActionState(bookId, false);
                     return;
                 }
 
                 const payload = await response.json();
                 syncState(payload);
+                setBookActionState(bookId, false);
             });
 
             document.querySelectorAll('[data-cart-add]').forEach((form) => {
@@ -403,7 +515,7 @@
                     }
 
                     const payload = await response.json();
-                    syncState(payload, { openPanel: true });
+                    syncState(payload, { openPanel: true, focusItem: true });
                 });
             });
 
