@@ -16,8 +16,6 @@ class StorefrontController extends Controller
     {
         return view('store.index', [
             'featuredBooks' => Book::query()->with('category')->latest()->take(4)->get(),
-            'totalBooks' => Book::count(),
-            'categoriesCount' => Category::count(),
         ]);
     }
 

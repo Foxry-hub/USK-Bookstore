@@ -16,16 +16,6 @@
                     <a href="#about" class="rounded-xl border border-white/40 px-5 py-3 text-sm font-semibold text-white/95 transition hover:bg-white/10">Tentang Kami</a>
                 </div>
 
-                <div class="mt-8 grid max-w-md grid-cols-2 gap-3">
-                    <div class="rounded-2xl border border-white/20 bg-white/10 p-3 text-center backdrop-blur">
-                        <p class="text-2xl font-extrabold">{{ $totalBooks }}</p>
-                        <p class="text-xs text-slate-200">Total Buku</p>
-                    </div>
-                    <div class="rounded-2xl border border-white/20 bg-white/10 p-3 text-center backdrop-blur">
-                        <p class="text-2xl font-extrabold">{{ $categoriesCount }}</p>
-                        <p class="text-xs text-slate-200">Kategori</p>
-                    </div>
-                </div>
             </div>
 
             <div class="rounded-3xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
@@ -46,9 +36,10 @@
             </form>
         </div>
 
-        <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="relative mt-6 sm:mt-6">
+            <div id="landingCatalog" class="no-scrollbar flex snap-x snap-mandatory gap-0 overflow-x-auto px-0 scroll-smooth pb-2 sm:grid sm:snap-none sm:overflow-visible sm:gap-5 sm:pb-0 sm:grid-cols-2 xl:grid-cols-4">
             @forelse ($featuredBooks as $book)
-                <article class="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:shadow-lg transition cursor-pointer">
+                <article data-catalog-slide="{{ $loop->index }}" class="group basis-full min-w-full max-w-full snap-start overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:shadow-lg sm:basis-auto sm:min-w-0 sm:max-w-none cursor-pointer">
                     <a href="{{ route('store.show', $book) }}" class="block overflow-hidden">
                         <img src="{{ $book->image_url ?: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80' }}" alt="{{ $book->title }}" class="h-52 w-full object-cover group-hover:scale-105 transition">
                     </a>
@@ -75,10 +66,50 @@
                     Belum ada buku yang cocok sama kata kunci kamu.
                 </div>
             @endforelse
+            </div>
+
+            <div class="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between sm:hidden" aria-hidden="true">
+                <button
+                    type="button"
+                    onclick="var c=document.getElementById('landingCatalog'); c.scrollBy({ left: -c.clientWidth, behavior: 'smooth' })"
+                    class="pointer-events-auto ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow transition hover:bg-slate-900 hover:text-white"
+                    aria-label="Geser katalog ke kiri"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+                        <path fill-rule="evenodd" d="M11.79 14.77a.75.75 0 0 1-1.06.02l-4.25-4a.75.75 0 0 1 0-1.08l4.25-4a.75.75 0 1 1 1.04 1.08L8.06 10l3.73 3.23a.75.75 0 0 1 .02 1.06Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="var c=document.getElementById('landingCatalog'); c.scrollBy({ left: c.clientWidth, behavior: 'smooth' })"
+                    class="pointer-events-auto mr-1 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow transition hover:bg-slate-900 hover:text-white"
+                    aria-label="Geser katalog ke kanan"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+                        <path fill-rule="evenodd" d="M8.21 5.23a.75.75 0 0 1 1.06-.02l4.25 4a.75.75 0 0 1 0 1.08l-4.25 4a.75.75 0 1 1-1.04-1.08L11.94 10 8.21 6.77a.75.75 0 0 1-.02-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            @if ($featuredBooks->count() > 1)
+                <div id="landingCatalogDots" class="mt-4 flex items-center justify-center gap-2 sm:hidden" aria-label="Indikator slide katalog">
+                    @foreach ($featuredBooks as $book)
+                        <button
+                            type="button"
+                            data-catalog-dot="{{ $loop->index }}"
+                            data-slide-index="{{ $loop->index }}"
+                            onclick="var c=document.getElementById('landingCatalog'); c.scrollTo({ left: c.clientWidth * Number(this.dataset.slideIndex), behavior: 'smooth' })"
+                            class="h-2.5 w-2.5 rounded-full transition {{ $loop->first ? 'bg-slate-900' : 'bg-slate-300' }}"
+                            aria-label="Buka slide {{ $loop->iteration }}"
+                        ></button>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <div class="mt-7 flex justify-center sm:justify-end">
-            <a href="{{ route('store.catalog') }}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition-all duration-300 ease-in-out hover:border-slate-900 hover:bg-slate-900 hover:text-white">Lihat Katalog Lengkap</a>
+            <a href="{{ route('store.catalog') }}" class="w-full max-w-xs rounded-xl border border-slate-300 px-5 py-3 text-center text-sm font-semibold text-slate-700 transition-all duration-300 ease-in-out hover:border-slate-900 hover:bg-slate-900 hover:text-white sm:w-auto">Lihat Katalog Lengkap</a>
         </div>
     </section>
 
@@ -106,36 +137,60 @@
         </div>
     </section>
 
-    <section id="contact" class="mt-10 rounded-[2rem] border border-slate-800 bg-slate-950 p-7 text-slate-100 shadow-sm lg:p-10">
-        <div class="grid gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-center">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Kontak Admin</p>
-                <h2 class="mt-2 text-3xl font-extrabold text-white">Hubungi admin tanpa ribet.</h2>
-                <p class="mt-3 text-sm leading-7 text-slate-300">Kalau ada pertanyaan tentang pesanan, checkout, atau rekomendasi buku, langsung hubungi kami. Tim admin akan bantu secepat mungkin di jam operasional.</p>
-            </div>
+    <section id="contact" class="mt-10 rounded-[2rem] border border-slate-200 bg-[#d7d7d7] p-4 shadow-sm sm:p-6 lg:p-8">
+        <div class="rounded-[1.6rem] border border-white/80 bg-[#f7f7f7] p-6 lg:p-8">
+            <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+                <div>
+                    <h2 class="text-4xl font-semibold tracking-tight text-slate-900">Get in touch</h2>
 
-            <div class="p-2 sm:p-3">
-                <div class="space-y-4 text-sm text-slate-100">
-                    <a href="mailto:admin@bookstore.com" class="flex items-center gap-3 py-1 font-semibold text-slate-100 transition hover:text-cyan-300">
-                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 7.5v9A2.25 2.25 0 0 1 19.5 18.75h-15A2.25 2.25 0 0 1 2.25 16.5v-9m19.5 0A2.25 2.25 0 0 0 19.5 5.25h-15A2.25 2.25 0 0 0 2.25 7.5m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0l-7.5-4.615a2.25 2.25 0 0 1-1.07-1.916V7.5" />
-                            </svg>
-                        </span>
-                        <span>admin@bookstore.com</span>
-                    </a>
+                    <div class="mt-7 space-y-5 text-sm text-slate-700">
+                        <div>
+                            <p class="text-slate-500">Email:</p>
+                            <a href="mailto:admin@bookstore.com" class="mt-1 inline-block font-medium text-slate-900 hover:text-slate-600">admin@bookstore.com</a>
+                        </div>
 
-                    <a href="https://wa.me/6281388088171" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 py-1 font-semibold text-slate-100 transition hover:text-emerald-300">
-                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="h-5 w-5">
-                                <path d="M19.05 4.91A9.82 9.82 0 0 0 12.03 2 9.96 9.96 0 0 0 2.07 11.96c0 1.75.46 3.47 1.33 4.98L2 22l5.2-1.36a9.94 9.94 0 0 0 4.75 1.2h.01c5.5 0 9.96-4.46 9.96-9.96a9.9 9.9 0 0 0-2.87-6.97Zm-7.09 15.25h-.01a8.26 8.26 0 0 1-4.21-1.16l-.3-.18-3.08.8.82-3-.2-.31a8.24 8.24 0 0 1-1.27-4.38c0-4.57 3.72-8.29 8.3-8.29a8.2 8.2 0 0 1 5.87 2.44 8.22 8.22 0 0 1 2.42 5.85c0 4.58-3.72 8.3-8.29 8.3Zm4.55-6.2c-.25-.13-1.47-.72-1.7-.8-.23-.08-.4-.12-.57.12-.17.25-.65.8-.8.96-.15.17-.29.19-.54.06-.25-.13-1.04-.38-1.98-1.2-.73-.65-1.22-1.45-1.36-1.7-.14-.25-.01-.38.11-.5.11-.1.25-.29.37-.43.12-.14.16-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.57-1.37-.78-1.87-.2-.48-.4-.42-.57-.43h-.49c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.43 1.02 2.6c.12.17 1.76 2.68 4.27 3.76.6.26 1.08.42 1.44.54.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.17-.48-.29Z"/>
-                            </svg>
-                        </span>
-                        <span>+62 813-8808-8171</span>
-                    </a>
+                        <div>
+                            <p class="text-slate-500">Phone:</p>
+                            <a href="tel:+6281388088171" class="mt-1 inline-block font-medium text-slate-900 hover:text-slate-600">+62 813 8808 8171</a>
+                        </div>
 
-                    <p class="pt-2 text-sm text-slate-300">Alamat: <span class="font-semibold text-white"> Jakarta Timur, Indonesia</span></p>
+                        <div>
+                            <p class="text-slate-500">Address:</p>
+                            <p class="mt-1 max-w-xs font-medium text-slate-900">Jl. Innovation Avenue No. 123, Jakarta Timur, Indonesia</p>
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-slate-500">Follow us:</p>
+                            <div class="flex items-center gap-2">
+                                <a href="#" aria-label="Instagram" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white transition hover:bg-slate-700">IG</a>
+                                <a href="#" aria-label="Facebook" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white transition hover:bg-slate-700">FB</a>
+                                <a href="#" aria-label="LinkedIn" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white transition hover:bg-slate-700">IN</a>
+                                <a href="#" aria-label="X" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white transition hover:bg-slate-700">X</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <form class="space-y-4" action="javascript:void(0)">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <label class="block text-sm font-medium text-slate-700">
+                            Your Name
+                            <input type="text" placeholder="Your full name" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">
+                        </label>
+
+                        <label class="block text-sm font-medium text-slate-700">
+                            Email address
+                            <input type="email" placeholder="Your email address" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">
+                        </label>
+                    </div>
+
+                    <label class="block text-sm font-medium text-slate-700">
+                        Message
+                        <textarea rows="6" placeholder="Write something..." class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none"></textarea>
+                    </label>
+
+                    <button type="button" class="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Send Message</button>
+                </form>
             </div>
         </div>
     </section>
@@ -156,4 +211,34 @@
             &copy; {{ date('Y') }} BookStore. All rights reserved.
         </div>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var catalog = document.getElementById('landingCatalog');
+            var dotsWrap = document.getElementById('landingCatalogDots');
+
+            if (!catalog || !dotsWrap) {
+                return;
+            }
+
+            var dots = dotsWrap.querySelectorAll('[data-catalog-dot]');
+
+            var updateActiveDot = function () {
+                var slideWidth = catalog.clientWidth || 1;
+                var index = Math.round(catalog.scrollLeft / slideWidth);
+
+                dots.forEach(function (dot, dotIndex) {
+                    var isActive = dotIndex === index;
+                    dot.classList.toggle('bg-slate-900', isActive);
+                    dot.classList.toggle('w-6', isActive);
+                    dot.classList.toggle('bg-slate-300', !isActive);
+                    dot.classList.toggle('w-2.5', !isActive);
+                });
+            };
+
+            catalog.addEventListener('scroll', updateActiveDot, { passive: true });
+            window.addEventListener('resize', updateActiveDot);
+            updateActiveDot();
+        });
+    </script>
 @endsection
