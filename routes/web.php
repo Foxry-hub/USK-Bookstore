@@ -17,6 +17,7 @@ Route::get('/', [StorefrontController::class, 'index'])->name('store.index');
 Route::get('/catalog', [StorefrontController::class, 'catalog'])->name('store.catalog');
 Route::get('/books/{book}', [StorefrontController::class, 'show'])->name('store.show');
 Route::post('/contact-messages', [ContactMessageController::class, 'store'])->name('contact.store');
+Route::post('/payments/midtrans/notification', [CheckoutController::class, 'notification'])->name('payments.midtrans.notification');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
@@ -35,6 +36,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
     Route::get('/orders', [CheckoutController::class, 'index'])->name('orders.index');
+    Route::post('/orders/{order}/pay', [CheckoutController::class, 'pay'])->name('orders.pay');
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function (): void {

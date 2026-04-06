@@ -338,30 +338,30 @@
             `;
 
             const buildCartPageRow = (item) => `
-                <article class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between" data-cart-item="${item.book_id}">
-                    <div class="flex items-center gap-4">
-                        <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80')}" alt="${escapeHtml(item.title)}" class="h-20 w-16 rounded-lg object-cover">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-base font-bold text-slate-900">${escapeHtml(item.title)}</h3>
-                                <span class="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">x${item.quantity}</span>
+                <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-cart-item="${item.book_id}">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="${escapeHtml(item.image_url || 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80')}" alt="${escapeHtml(item.title)}" class="h-20 w-14 rounded-lg object-cover">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900">${escapeHtml(item.title)}</h3>
+                                <p class="mt-1 text-xs text-slate-500">Rp ${formatCurrency(item.price)}</p>
+                                <p class="mt-1 text-xs font-semibold text-slate-700">Subtotal: Rp ${formatCurrency(item.price * item.quantity)}</p>
                             </div>
-                            <p class="text-sm text-slate-600">Rp ${formatCurrency(item.price)}</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
-                            <button type="button" class="cart-stepper flex h-9 w-9 items-center justify-center rounded-lg text-base font-bold text-slate-700 hover:bg-white" data-cart-action="decrease" data-book-id="${item.book_id}">-</button>
-                            <span class="min-w-10 px-3 text-center text-sm font-semibold text-slate-900" data-cart-quantity="${item.book_id}">${item.quantity}</span>
-                            <button type="button" class="cart-stepper flex h-9 w-9 items-center justify-center rounded-lg text-base font-bold text-slate-700 hover:bg-white" data-cart-action="increase" data-book-id="${item.book_id}">+</button>
                         </div>
 
-                        <form action="{{ url('/cart') }}/${item.book_id}" method="POST" class="cart-remove-form">
-                            <input type="hidden" name="_token" value="${csrfToken}">
-                            <input type="hidden" name="_method" value="DELETE">
-                            <button class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600">Hapus</button>
-                        </form>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                <button type="button" class="cart-stepper flex h-9 w-9 items-center justify-center rounded-lg text-base font-bold text-slate-700 hover:bg-white" data-cart-action="decrease" data-book-id="${item.book_id}">-</button>
+                                <span class="min-w-10 px-3 text-center text-sm font-semibold text-slate-900" data-cart-quantity="${item.book_id}">${item.quantity}</span>
+                                <button type="button" class="cart-stepper flex h-9 w-9 items-center justify-center rounded-lg text-base font-bold text-slate-700 hover:bg-white" data-cart-action="increase" data-book-id="${item.book_id}">+</button>
+                            </div>
+
+                            <form action="{{ url('/cart') }}/${item.book_id}" method="POST" class="cart-remove-form">
+                                <input type="hidden" name="_token" value="${csrfToken}">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600">Hapus</button>
+                            </form>
+                        </div>
                     </div>
                 </article>
             `;

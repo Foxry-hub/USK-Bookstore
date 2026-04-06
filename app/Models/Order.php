@@ -17,6 +17,16 @@ class Order extends Model
         'phone',
         'shipping_address',
         'note',
+        'midtrans_transaction_id',
+        'midtrans_order_id',
+        'midtrans_transaction_status',
+        'midtrans_payment_type',
+        'midtrans_fraud_status',
+        'paid_at',
+    ];
+
+    protected $casts = [
+        'paid_at' => 'datetime',
     ];
 
     /**

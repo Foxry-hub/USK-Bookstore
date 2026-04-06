@@ -13,10 +13,23 @@ class OrderController extends Controller
     /**
      * Tampilkan list semua pesanan dari user.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $paymentStatus = (string) $request->query('payment_status', 'all');
+
+        $ordersQuery = Order::with(['user', 'items.book'])->latest();
+
+        if ($paymentStatus !== 'all') {
+            if ($paymentStatus === 'cod') {
+                $ordersQuery->where('payment_method', 'COD');
+            } else {
+                $ordersQuery->where('midtrans_transaction_status', $paymentStatus);
+            }
+        }
+
         return view('admin.orders.index', [
-            'orders' => Order::with(['user', 'items.book'])->latest()->paginate(10),
+            'orders' => $ordersQuery->paginate(10)->withQueryString(),
+            'paymentStatus' => $paymentStatus,
         ]);
     }
 
@@ -26,7 +39,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:Menunggu Konfirmasi,Diproses,Dikirim,Selesai'],
+            'status' => ['required', 'in:Menunggu Pembayaran,Menunggu Konfirmasi,Menunggu Verifikasi,Dibayar,Diproses,Dikirim,Selesai,Pembayaran Gagal,Refund'],
         ]);
 
         $order->update([
