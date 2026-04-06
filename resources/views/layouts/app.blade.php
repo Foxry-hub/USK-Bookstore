@@ -70,6 +70,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
     @php
+        $unreadContactMessages = auth()->check() && auth()->user()->isAdmin() ? \App\Models\ContactMessage::where('is_read', false)->count() : 0;
         $miniCartItems = auth()->check() && !auth()->user()->isAdmin() ? collect(request()->session()->get('cart', []))->values() : collect();
         $miniCartTotal = $miniCartItems->sum(fn (array $item): float => $item['price'] * $item['quantity']);
         $miniCartCount = $miniCartItems->sum('quantity');
@@ -87,14 +88,50 @@
 
                     @auth
                         @if (auth()->user()->isAdmin())
-                            <a href="{{ route('admin.dashboard') }}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Dashboard Admin</a>
+                            <a href="{{ route('admin.dashboard') }}" class="relative rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                                Dashboard Admin
+                                @if ($unreadContactMessages > 0)
+                                    <span class="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-white bg-rose-500 px-1 text-[11px] font-bold text-white">{{ $unreadContactMessages }}</span>
+                                @endif
+                            </a>
                         @else
-                            <a href="{{ route('cart.index') }}" class="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white">Keranjang (<span id="mini-cart-count">{{ $miniCartCount }}</span>)</a>
-                            <a href="{{ route('orders.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Pesanan</a>
+                            <a
+                                href="{{ route('cart.index') }}"
+                                class="relative inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-white shadow-sm ring-1 ring-brand-600/20 transition hover:bg-brand-600 hover:shadow-md"
+                                aria-label="Buka keranjang"
+                                title="Keranjang"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="h-6 w-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h1.22c.58 0 1.08.4 1.22.96l1.42 5.84c.2.8.92 1.4 1.75 1.4h7.33c.8 0 1.5-.53 1.71-1.31l1.33-4.89H7.16" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 19.5a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0ZM17.1 19.5a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0" />
+                                </svg>
+                                <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-white bg-slate-900 px-1 text-[11px] font-bold text-white" id="mini-cart-count">{{ $miniCartCount }}</span>
+                            </a>
+                            <a
+                                href="{{ route('orders.index') }}"
+                                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                aria-label="Lihat pesanan"
+                                title="Pesanan"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9l1.5 3v12H6V7.5l1.5-3Z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 10.5h6M9 14h5" />
+                                </svg>
+                            </a>
                         @endif
                         <form action="{{ route('logout') }}" method="POST" class="inline">
                             @csrf
-                            <button type="submit" class="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600">Logout</button>
+                            <button
+                                type="submit"
+                                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-rose-200 text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                                aria-label="Logout"
+                                title="Logout"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 4.5h3.75A1.5 1.5 0 0 1 15.75 6v12a1.5 1.5 0 0 1-1.5 1.5H10.5" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 12h-8.5m0 0 2.25-2.25m-2.25 2.25 2.25 2.25" />
+                                </svg>
+                            </button>
                         </form>
                     @else
                         <a href="{{ route('login') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Login</a>
@@ -113,6 +150,12 @@
                             <a href="{{ route('admin.dashboard') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Dashboard</a>
                             <a href="{{ route('admin.categories.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.categories.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Kategori</a>
                             <a href="{{ route('admin.books.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.books.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Buku</a>
+                            <a href="{{ route('admin.messages.index') }}" class="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.messages.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">
+                                <span>Pesan Masuk</span>
+                                @if ($unreadContactMessages > 0)
+                                    <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">{{ $unreadContactMessages }}</span>
+                                @endif
+                            </a>
                             <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">User</a>
                             <a href="{{ route('admin.orders.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Pesanan</a>
                         </div>
@@ -125,6 +168,9 @@
                             <a href="{{ route('admin.dashboard') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Dashboard</a>
                             <a href="{{ route('admin.categories.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.categories.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Kategori</a>
                             <a href="{{ route('admin.books.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.books.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Buku</a>
+                            <a href="{{ route('admin.messages.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.messages.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
+                                Pesan{{ $unreadContactMessages > 0 ? ' (' . $unreadContactMessages . ')' : '' }}
+                            </a>
                             <a href="{{ route('admin.users.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">User</a>
                             <a href="{{ route('admin.orders.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Pesanan</a>
                         </div>

@@ -2,6 +2,10 @@
 
 @section('content')
     <section class="space-y-6">
+        @php
+            $unreadContactMessages = \App\Models\ContactMessage::where('is_read', false)->count();
+        @endphp
+
         <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-800 px-6 py-8 text-white shadow-lg sm:px-8">
             <div class="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10"></div>
             <div class="absolute -bottom-12 right-20 h-36 w-36 rounded-full bg-white/10"></div>
@@ -60,6 +64,12 @@
                 <div class="mt-4 space-y-3">
                     <a href="{{ route('admin.categories.create') }}" class="block rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">+ Tambah Kategori</a>
                     <a href="{{ route('admin.books.create') }}" class="block rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white">+ Tambah Buku</a>
+                    <a href="{{ route('admin.messages.index') }}" class="flex items-center justify-between rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">
+                        <span>Lihat Pesan Masuk</span>
+                        @if ($unreadContactMessages > 0)
+                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">{{ $unreadContactMessages }}</span>
+                        @endif
+                    </a>
                     <a href="{{ route('admin.users.index') }}" class="block rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">Lihat User</a>
                     <a href="{{ route('admin.orders.index') }}" class="block rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">Kelola Pesanan</a>
                 </div>

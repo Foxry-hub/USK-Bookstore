@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BookController as AdminBookController;
+use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -8,12 +9,14 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'index'])->name('store.index');
 Route::get('/catalog', [StorefrontController::class, 'catalog'])->name('store.catalog');
 Route::get('/books/{book}', [StorefrontController::class, 'show'])->name('store.show');
+Route::post('/contact-messages', [ContactMessageController::class, 'store'])->name('contact.store');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
@@ -42,4 +45,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+
+    Route::get('/messages', [AdminContactMessageController::class, 'index'])->name('messages.index');
+    Route::get('/messages/{message}', [AdminContactMessageController::class, 'show'])->name('messages.show');
 });

@@ -24,7 +24,7 @@
         </div>
     </section>
 
-    <section id="catalog" style="scroll-margin-top: 6.5rem;" class="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section id="catalog" style="scroll-margin-top: 6.5rem;" class="mt-20 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:mt-24">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <h2 class="text-2xl font-bold text-slate-900">Katalog Buku</h2>
@@ -171,26 +171,42 @@
                     </div>
                 </div>
 
-                <form class="space-y-4" action="javascript:void(0)">
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <label class="block text-sm font-medium text-slate-700">
-                            Your Name
-                            <input type="text" placeholder="Your full name" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">
-                        </label>
+                @auth
+                    @if (! auth()->user()->isAdmin())
+                        <form class="space-y-4" method="POST" action="{{ route('contact.store') }}">
+                            @csrf
+                            <label class="block text-sm font-medium text-slate-700">
+                                Your Name
+                                <input type="text" name="name" value="{{ old('name', auth()->user()->name) }}" placeholder="Your full name" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">
+                                @error('name')
+                                    <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>
+                                @enderror
+                            </label>
 
-                        <label class="block text-sm font-medium text-slate-700">
-                            Email address
-                            <input type="email" placeholder="Your email address" class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">
-                        </label>
+                            <label class="block text-sm font-medium text-slate-700">
+                                Message
+                                <textarea rows="6" name="message" placeholder="Write something..." class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none">{{ old('message') }}</textarea>
+                                @error('message')
+                                    <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>
+                                @enderror
+                            </label>
+
+                            <button type="submit" class="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Send Message</button>
+                        </form>
+                    @else
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-sm text-slate-600">
+                            Akun admin tidak bisa mengirim pesan kontak.
+                        </div>
+                    @endif
+                @else
+                    <div class="rounded-2xl border border-slate-300 bg-white px-4 py-8 text-sm text-slate-600">
+                        Silakan login dulu untuk mengirim pesan ke admin.
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <a href="{{ route('login') }}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Login</a>
+                            <a href="{{ route('register') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Register</a>
+                        </div>
                     </div>
-
-                    <label class="block text-sm font-medium text-slate-700">
-                        Message
-                        <textarea rows="6" placeholder="Write something..." class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-200/60 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none"></textarea>
-                    </label>
-
-                    <button type="button" class="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">Send Message</button>
-                </form>
+                @endauth
             </div>
         </div>
     </section>
