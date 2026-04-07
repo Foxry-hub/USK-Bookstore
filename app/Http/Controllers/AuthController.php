@@ -11,17 +11,11 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
-    /**
-     * Tampilkan form register biar user baru bisa gabung.
-     */
     public function showRegister(): View
     {
         return view('auth.register');
     }
 
-    /**
-     * Proses registrasi user dan langsung login biar gak ribet.
-     */
     public function register(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -42,17 +36,11 @@ class AuthController extends Controller
         return redirect()->route('store.index')->with('success', 'Akun berhasil dibuat. Selamat datang ya!');
     }
 
-    /**
-     * Tampilkan form login buat user/admin yang udah punya akun.
-     */
     public function showLogin(): View
     {
         return view('auth.login');
     }
 
-    /**
-     * Proses login user dengan validasi sederhana.
-     */
     public function login(Request $request): RedirectResponse
     {
         $credentials = $request->validate([
@@ -75,9 +63,6 @@ class AuthController extends Controller
         return redirect()->route('store.index')->with('success', 'Login berhasil. Yuk cari buku favoritmu!');
     }
 
-    /**
-     * Logout user lalu bersihin session biar aman.
-     */
     public function logout(Request $request): RedirectResponse
     {
         Auth::logout();

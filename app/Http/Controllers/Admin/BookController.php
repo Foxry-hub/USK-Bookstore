@@ -11,9 +11,6 @@ use Illuminate\View\View;
 
 class BookController extends Controller
 {
-    /**
-     * Tampilkan daftar buku untuk dashboard admin.
-     */
     public function index(): View
     {
         return view('admin.books.index', [
@@ -21,9 +18,6 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Tampilkan form tambah buku baru.
-     */
     public function create(): View
     {
         return view('admin.books.create', [
@@ -31,43 +25,13 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Simpan data buku dari form admin.
-     */
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'category_id' => ['required', 'exists:categories,id'],
-            'title' => ['required', 'string', 'max:180'],
-            'author' => ['required', 'string', 'max:150'],
-            'price' => ['required', 'numeric', 'min:1000'],
-            'image_url' => ['nullable', 'url', 'max:500'],
-            'image_urls' => ['nullable', 'array'],
-            'image_urls.*' => ['nullable', 'url', 'max:500'],
-            'description' => ['nullable', 'string'],
-            'detail' => ['nullable', 'string'],
-        ]);
-
-        $extraImages = collect($validated['image_urls'] ?? [])
-            ->filter(fn ($url) => is_string($url) && trim($url) !== '')
-            ->map(fn ($url) => trim($url))
-            ->values()
-            ->all();
-
-        $validated['image_urls'] = $extraImages;
-
-        if (empty($validated['image_url']) && count($extraImages) > 0) {
-            $validated['image_url'] = $extraImages[0];
-        }
-
-        Book::create($validated);
+        Book::create($this->validatedBookData($request));
 
         return redirect()->route('admin.books.index')->with('success', 'Buku berhasil ditambahkan ke katalog.');
     }
 
-    /**
-     * Tampilkan form edit buku.
-     */
     public function edit(Book $book): View
     {
         return view('admin.books.edit', [
@@ -76,10 +40,21 @@ class BookController extends Controller
         ]);
     }
 
-    /**
-     * Simpan update buku dari admin.
-     */
     public function update(Request $request, Book $book): RedirectResponse
+    {
+        $book->update($this->validatedBookData($request));
+
+        return redirect()->route('admin.books.index')->with('success', 'Data buku berhasil diperbarui.');
+    }
+
+    public function destroy(Book $book): RedirectResponse
+    {
+        $book->delete();
+
+        return redirect()->route('admin.books.index')->with('success', 'Buku berhasil dihapus.');
+    }
+
+    private function validatedBookData(Request $request): array
     {
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
@@ -93,30 +68,23 @@ class BookController extends Controller
             'detail' => ['nullable', 'string'],
         ]);
 
-        $extraImages = collect($validated['image_urls'] ?? [])
+        $extraImages = $this->normalizeImageUrls($validated['image_urls'] ?? []);
+
+        $validated['image_urls'] = $extraImages;
+
+        if (empty($validated['image_url']) && $extraImages !== []) {
+            $validated['image_url'] = $extraImages[0];
+        }
+
+        return $validated;
+    }
+
+    private function normalizeImageUrls(array $imageUrls): array
+    {
+        return collect($imageUrls)
             ->filter(fn ($url) => is_string($url) && trim($url) !== '')
             ->map(fn ($url) => trim($url))
             ->values()
             ->all();
-
-        $validated['image_urls'] = $extraImages;
-
-        if (empty($validated['image_url']) && count($extraImages) > 0) {
-            $validated['image_url'] = $extraImages[0];
-        }
-
-        $book->update($validated);
-
-        return redirect()->route('admin.books.index')->with('success', 'Data buku berhasil diperbarui.');
-    }
-
-    /**
-     * Hapus buku dari katalog.
-     */
-    public function destroy(Book $book): RedirectResponse
-    {
-        $book->delete();
-
-        return redirect()->route('admin.books.index')->with('success', 'Buku berhasil dihapus.');
     }
 }

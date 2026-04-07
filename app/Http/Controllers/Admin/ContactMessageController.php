@@ -8,9 +8,6 @@ use Illuminate\View\View;
 
 class ContactMessageController extends Controller
 {
-    /**
-     * Tampilkan daftar pesan masuk dari customer.
-     */
     public function index(): View
     {
         return view('admin.messages.index', [
@@ -18,9 +15,6 @@ class ContactMessageController extends Controller
         ]);
     }
 
-    /**
-     * Tampilkan detail pesan secara read-only.
-     */
     public function show(ContactMessage $message): View
     {
         if (! $message->is_read) {

@@ -8,9 +8,6 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    /**
-     * Tampilkan semua user terdaftar buat monitoring admin.
-     */
     public function index(): View
     {
         return view('admin.users.index', [

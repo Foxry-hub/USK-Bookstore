@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -17,9 +18,6 @@ use Midtrans\Snap;
 
 class CheckoutController extends Controller
 {
-    /**
-     * Simpan checkout dari keranjang ke tabel orders.
-     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -27,6 +25,7 @@ class CheckoutController extends Controller
             'shipping_address' => ['required', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:500'],
             'payment_method' => ['required', 'in:COD,MIDTRANS'],
+            'payment_detail' => ['required', 'in:card,cod'],
         ]);
 
         $cart = $request->session()->get('cart', []);
@@ -36,8 +35,9 @@ class CheckoutController extends Controller
         }
 
         $paymentMethod = $validated['payment_method'];
+        $paymentDetail = $validated['payment_detail'];
 
-        $order = DB::transaction(function () use ($request, $validated, $cart, $paymentMethod): Order {
+        $order = DB::transaction(function () use ($request, $validated, $cart, $paymentMethod, $paymentDetail): Order {
             $total = collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
 
             $order = Order::create([
@@ -45,7 +45,8 @@ class CheckoutController extends Controller
                 'order_code' => 'ORD-' . now()->format('YmdHis') . '-' . random_int(100, 999),
                 'total_price' => $total,
                 'payment_method' => $paymentMethod,
-                'status' => $paymentMethod === 'MIDTRANS' ? 'Menunggu Pembayaran' : 'Menunggu Konfirmasi',
+                'midtrans_payment_type' => $paymentMethod === 'MIDTRANS' ? $paymentDetail : null,
+                'status' => 'Menunggu Konfirmasi',
                 'phone' => $validated['phone'],
                 'shipping_address' => $validated['shipping_address'],
                 'note' => $validated['note'] ?? null,
@@ -74,16 +75,25 @@ class CheckoutController extends Controller
                     $this->mapCartToMidtransItems($cart),
                     $request->user(),
                     $validated['phone'],
+                    $paymentDetail,
                 );
             } catch (\Throwable $exception) {
                 Log::error('Midtrans checkout failed', [
                     'order_id' => $order->id,
+                    'payment_detail' => $paymentDetail,
                     'message' => $exception->getMessage(),
+                    'exception' => get_class($exception),
                 ]);
+
+                $errorMessage = 'Pesanan berhasil dibuat, tapi gagal membuka halaman pembayaran Midtrans. Silakan klik Bayar Ulang dari riwayat pesanan.';
+
+                if (app()->isLocal()) {
+                    $errorMessage .= ' Detail: ' . $exception->getMessage();
+                }
 
                 return redirect()
                     ->route('orders.index')
-                    ->with('error', 'Pesanan berhasil dibuat, tapi gagal membuka halaman pembayaran Midtrans. Silakan klik Bayar Ulang dari riwayat pesanan.');
+                    ->with('error', $errorMessage);
             }
         }
 
@@ -96,9 +106,6 @@ class CheckoutController extends Controller
         return redirect()->route('orders.index')->with('success', 'Checkout COD berhasil, pesanan kamu sudah kami catat.');
     }
 
-    /**
-     * Bayar ulang order Midtrans dari halaman riwayat pesanan.
-     */
     public function pay(Request $request, Order $order): RedirectResponse
     {
         if ($order->user_id !== $request->user()->id) {
@@ -109,7 +116,9 @@ class CheckoutController extends Controller
             return back()->with('error', 'Order COD tidak perlu pembayaran online.');
         }
 
-        if (! in_array($order->status, ['Menunggu Pembayaran', 'Pembayaran Gagal'], true)) {
+        if (! in_array($order->midtrans_transaction_status, ['pending', 'deny', 'cancel', 'expire'], true)
+            && ! in_array($order->status, ['Menunggu Pembayaran', 'Pembayaran Gagal'], true)
+        ) {
             return back()->with('error', 'Order ini tidak bisa dibayar ulang karena statusnya sudah berubah.');
         }
 
@@ -120,27 +129,35 @@ class CheckoutController extends Controller
         }
 
         try {
+            $retryPaymentDetail = 'card';
+
             $midtransRedirectUrl = $this->createMidtransTransaction(
                 $order,
                 $itemDetails,
                 $request->user(),
                 $order->phone,
+                $retryPaymentDetail,
             );
         } catch (\Throwable $exception) {
             Log::error('Midtrans retry payment failed', [
                 'order_id' => $order->id,
+                'payment_detail' => $order->midtrans_payment_type,
                 'message' => $exception->getMessage(),
+                'exception' => get_class($exception),
             ]);
 
-            return back()->with('error', 'Gagal membuat pembayaran ulang Midtrans. Coba lagi sebentar lagi.');
+            $errorMessage = 'Gagal membuat pembayaran ulang Midtrans. Coba lagi sebentar lagi.';
+
+            if (app()->isLocal()) {
+                $errorMessage .= ' Detail: ' . $exception->getMessage();
+            }
+
+            return back()->with('error', $errorMessage);
         }
 
         return redirect()->away($midtransRedirectUrl);
     }
 
-    /**
-     * Endpoint callback Midtrans untuk update status pembayaran order.
-     */
     public function notification(Request $request): JsonResponse
     {
         $payload = $request->all();
@@ -180,14 +197,7 @@ class CheckoutController extends Controller
         $fraudStatus = (string) ($payload['fraud_status'] ?? '');
         $paymentType = (string) ($payload['payment_type'] ?? 'MIDTRANS');
 
-        $nextStatus = match ($transactionStatus) {
-            'settlement' => 'Dibayar',
-            'capture' => $fraudStatus === 'challenge' ? 'Menunggu Verifikasi' : 'Dibayar',
-            'pending' => 'Menunggu Pembayaran',
-            'deny', 'cancel', 'expire' => 'Pembayaran Gagal',
-            'refund', 'partial_refund' => 'Refund',
-            default => $order->status,
-        };
+        $nextStatus = $this->resolveOrderStatusFromPaymentStatus($order, $transactionStatus, $fraudStatus);
 
         $order->update([
             'status' => $nextStatus,
@@ -204,22 +214,151 @@ class CheckoutController extends Controller
         return response()->json(['message' => 'OK']);
     }
 
-    /**
-     * Tampilkan riwayat order user yang sedang login.
-     */
     public function index(Request $request): View
     {
-        $orders = Order::with('items.book')
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate(8);
+        $this->autoFinalizeDueOrders($request->user()->id);
+        $this->syncOrderFromGatewayRedirect($request);
 
-        return view('orders.index', ['orders' => $orders]);
+        $activePackageStatus = (string) $request->query('status', 'all');
+        $statusFilters = [
+            'all' => null,
+            'menunggu_konfirmasi' => ['Menunggu Konfirmasi', 'Menunggu Verifikasi'],
+            'dibayar' => ['Dibayar'],
+            'diproses' => ['Diproses'],
+            'dikirim' => ['Dikirim'],
+            'selesai' => ['Selesai'],
+            'dibatalkan' => ['Pembayaran Gagal'],
+        ];
+
+        $ordersQuery = Order::with('items.book')
+            ->where('user_id', $request->user()->id)
+            ->latest();
+
+        if ($activePackageStatus !== 'all' && isset($statusFilters[$activePackageStatus])) {
+            $ordersQuery->whereIn('status', $statusFilters[$activePackageStatus]);
+        }
+
+        $orders = $ordersQuery->paginate(8)->withQueryString();
+
+        $packageStats = [
+            'all' => Order::where('user_id', $request->user()->id)->count(),
+            'menunggu_konfirmasi' => Order::where('user_id', $request->user()->id)
+                ->whereIn('status', ['Menunggu Konfirmasi', 'Menunggu Verifikasi'])
+                ->count(),
+            'dibayar' => Order::where('user_id', $request->user()->id)->where('status', 'Dibayar')->count(),
+            'diproses' => Order::where('user_id', $request->user()->id)->where('status', 'Diproses')->count(),
+            'dikirim' => Order::where('user_id', $request->user()->id)->where('status', 'Dikirim')->count(),
+            'selesai' => Order::where('user_id', $request->user()->id)->where('status', 'Selesai')->count(),
+            'dibatalkan' => Order::where('user_id', $request->user()->id)->where('status', 'Pembayaran Gagal')->count(),
+        ];
+
+        return view('orders.index', [
+            'orders' => $orders,
+            'activePackageStatus' => $activePackageStatus,
+            'packageStats' => $packageStats,
+        ]);
     }
 
-    /**
-     * Set konfigurasi Midtrans berdasarkan environment.
-     */
+    public function confirmReceived(Request $request, Order $order): RedirectResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($order->status !== 'Dikirim') {
+            return back()->with('error', 'Pesanan belum bisa dikonfirmasi selesai.');
+        }
+
+        if ($order->estimated_delivery_at === null || now()->lt($order->estimated_delivery_at)) {
+            return back()->with('error', 'Pesanan belum masuk estimasi sampai.');
+        }
+
+        $order->update([
+            'status' => 'Selesai',
+            'received_at' => now(),
+            'paid_at' => $order->payment_method === 'COD' ? ($order->paid_at ?? now()) : $order->paid_at,
+        ]);
+
+        return back()->with('success', 'Terima kasih, pesanan sudah ditandai selesai.');
+    }
+
+    private function syncOrderFromGatewayRedirect(Request $request): void
+    {
+        $midtransOrderId = (string) $request->query('order_id', '');
+
+        if ($midtransOrderId === '') {
+            return;
+        }
+
+        $order = Order::query()
+            ->where('user_id', $request->user()->id)
+            ->where(function ($query) use ($midtransOrderId): void {
+                $query->where('midtrans_order_id', $midtransOrderId)
+                    ->orWhere('order_code', $midtransOrderId);
+            })
+            ->first();
+
+        if ($order === null) {
+            return;
+        }
+
+        try {
+            $this->configureMidtrans();
+
+            $authHeader = base64_encode((string) config('services.midtrans.server_key') . ':');
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Basic ' . $authHeader,
+            ])->get('https://api.sandbox.midtrans.com/v2/' . $midtransOrderId . '/status');
+
+            if (! $response->successful()) {
+                return;
+            }
+
+            $payload = $response->json();
+            if (! is_array($payload)) {
+                return;
+            }
+
+            $transactionStatus = (string) ($payload['transaction_status'] ?? '');
+            $fraudStatus = (string) ($payload['fraud_status'] ?? '');
+            $paymentType = (string) ($payload['payment_type'] ?? 'MIDTRANS');
+
+            $nextStatus = $this->resolveOrderStatusFromPaymentStatus($order, $transactionStatus, $fraudStatus);
+
+            $order->update([
+                'status' => $nextStatus,
+                'payment_method' => strtoupper($paymentType),
+                'midtrans_order_id' => (string) ($payload['order_id'] ?? $midtransOrderId),
+                'midtrans_transaction_status' => $transactionStatus ?: $order->midtrans_transaction_status,
+                'midtrans_payment_type' => $paymentType ?: $order->midtrans_payment_type,
+                'midtrans_fraud_status' => $fraudStatus ?: $order->midtrans_fraud_status,
+                'paid_at' => in_array($transactionStatus, ['settlement', 'capture'], true)
+                    ? ($order->paid_at ?? now())
+                    : $order->paid_at,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to sync Midtrans status from redirect', [
+                'order_id' => $midtransOrderId,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function autoFinalizeDueOrders(int $userId): void
+    {
+        Order::query()
+            ->where('user_id', $userId)
+            ->where('status', 'Dikirim')
+            ->where('payment_method', '!=', 'COD')
+            ->whereNotNull('estimated_delivery_at')
+            ->where('estimated_delivery_at', '<=', now())
+            ->update([
+                'status' => 'Selesai',
+                'received_at' => DB::raw('COALESCE(received_at, CURRENT_TIMESTAMP)'),
+            ]);
+    }
+
     private function configureMidtrans(): void
     {
         $serverKey = (string) config('services.midtrans.server_key');
@@ -234,32 +373,19 @@ class CheckoutController extends Controller
         MidtransConfig::$is3ds = (bool) config('services.midtrans.is_3ds', true);
     }
 
-    /**
-     * Buat transaksi Snap Midtrans dan simpan token + midtrans order id terbaru.
-     *
-     * @param array<int, array{id: string, price: int, quantity: int, name: string}> $itemDetails
-     */
-    private function createMidtransTransaction(Order $order, array $itemDetails, User $user, string $phone): string
+    private function createMidtransTransaction(Order $order, array $itemDetails, User $user, string $phone, string $paymentDetail): string
     {
         $this->configureMidtrans();
 
         $midtransOrderId = $this->generateMidtransOrderId($order);
+        $enabledPayments = $this->resolveMidtransEnabledPayments($paymentDetail);
 
         $snapResponse = Snap::createTransaction([
             'transaction_details' => [
                 'order_id' => $midtransOrderId,
                 'gross_amount' => (int) round($order->total_price),
             ],
-            'enabled_payments' => [
-                'bank_transfer',
-                'bca_va',
-                'bni_va',
-                'bri_va',
-                'gopay',
-                'qris',
-                'shopeepay',
-                'dana',
-            ],
+            'enabled_payments' => $enabledPayments,
             'customer_details' => [
                 'first_name' => $user->name,
                 'email' => $user->email,
@@ -281,8 +407,9 @@ class CheckoutController extends Controller
         }
 
         $order->update([
-            'status' => 'Menunggu Pembayaran',
+            'status' => 'Menunggu Konfirmasi',
             'payment_method' => 'MIDTRANS',
+            'midtrans_payment_type' => $paymentDetail,
             'midtrans_transaction_id' => $snapResponse->token ?? null,
             'midtrans_order_id' => $midtransOrderId,
             'midtrans_transaction_status' => 'pending',
@@ -291,10 +418,6 @@ class CheckoutController extends Controller
         return $redirectUrl;
     }
 
-    /**
-     * @param array<int, array{book_id: int, price: float|int, quantity: int, title: string}> $cart
-     * @return array<int, array{id: string, price: int, quantity: int, name: string}>
-     */
     private function mapCartToMidtransItems(array $cart): array
     {
         return collect($cart)
@@ -308,9 +431,6 @@ class CheckoutController extends Controller
             ->all();
     }
 
-    /**
-     * @return array<int, array{id: string, price: int, quantity: int, name: string}>
-     */
     private function mapOrderItemsToMidtransItems(Order $order): array
     {
         return $order->items()
@@ -331,5 +451,29 @@ class CheckoutController extends Controller
     private function generateMidtransOrderId(Order $order): string
     {
         return $order->order_code . '-MT-' . now()->format('YmdHis') . '-' . random_int(100, 999);
+    }
+
+    private function resolveMidtransEnabledPayments(string $paymentDetail): array
+    {
+        return match ($paymentDetail) {
+            'card' => ['credit_card'],
+            default => throw new \InvalidArgumentException('Metode pembayaran Midtrans tidak didukung.'),
+        };
+    }
+
+    private function resolveOrderStatusFromPaymentStatus(Order $order, string $transactionStatus, string $fraudStatus): string
+    {
+        if (in_array($order->status, ['Diproses', 'Dikirim', 'Selesai'], true)) {
+            return $order->status;
+        }
+
+        return match ($transactionStatus) {
+            'settlement' => 'Dibayar',
+            'capture' => $fraudStatus === 'challenge' ? 'Menunggu Verifikasi' : 'Dibayar',
+            'pending' => 'Menunggu Konfirmasi',
+            'deny', 'cancel', 'expire' => 'Pembayaran Gagal',
+            'refund', 'partial_refund' => 'Refund',
+            default => $order->status,
+        };
     }
 }

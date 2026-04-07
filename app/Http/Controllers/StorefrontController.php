@@ -9,9 +9,6 @@ use Illuminate\View\View;
 
 class StorefrontController extends Controller
 {
-    /**
-     * Landing page dengan preview katalog.
-     */
     public function index(): View
     {
         return view('store.index', [
@@ -19,9 +16,6 @@ class StorefrontController extends Controller
         ]);
     }
 
-    /**
-     * Halaman katalog lengkap dengan filter.
-     */
     public function catalog(Request $request): View
     {
         $query = Book::query()->with('category')->latest();
@@ -44,7 +38,6 @@ class StorefrontController extends Controller
         $groupedCategories = $books
             ->groupBy('category_id')
             ->map(function ($items): array {
-                /** @var Book $first */
                 $first = $items->first();
 
                 return [
@@ -72,9 +65,6 @@ class StorefrontController extends Controller
         ]);
     }
 
-    /**
-     * Detail page produk buku dengan preview lengkap.
-     */
     public function show(Book $book): View
     {
         $relatedBooks = Book::where('category_id', $book->category_id)

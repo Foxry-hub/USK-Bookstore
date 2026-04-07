@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Auth;
 
 class ContactMessageController extends Controller
 {
-    /**
-     * Simpan pesan kontak dari landing page.
-     */
     public function store(Request $request): RedirectResponse
     {
         if (! Auth::check() || Auth::user()?->is_admin) {

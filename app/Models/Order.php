@@ -22,10 +22,16 @@ class Order extends Model
         'midtrans_transaction_status',
         'midtrans_payment_type',
         'midtrans_fraud_status',
+        'shipped_at',
+        'estimated_delivery_at',
+        'received_at',
         'paid_at',
     ];
 
     protected $casts = [
+        'shipped_at' => 'datetime',
+        'estimated_delivery_at' => 'datetime',
+        'received_at' => 'datetime',
         'paid_at' => 'datetime',
     ];
 

@@ -11,9 +11,6 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    /**
-     * Tampilan utama admin, biar semua insight penting langsung kebaca di awal.
-     */
     public function index(): View
     {
         return view('admin.dashboard', [

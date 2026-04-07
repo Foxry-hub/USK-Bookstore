@@ -25,9 +25,6 @@ class CartController extends Controller
         ], $extra);
     }
 
-    /**
-     * Tampilkan isi keranjang yang disimpan di session.
-     */
     public function index(Request $request): View
     {
         $cart = $request->session()->get('cart', []);
@@ -38,9 +35,6 @@ class CartController extends Controller
         ]);
     }
 
-    /**
-     * Tambah buku ke cart, kalau udah ada tinggal nambah jumlahnya.
-     */
     public function add(Request $request, Book $book): RedirectResponse|Response
     {
         $cart = $request->session()->get('cart', []);
@@ -69,9 +63,6 @@ class CartController extends Controller
         return back()->with('success', 'Buku berhasil masuk keranjang.');
     }
 
-    /**
-     * Update jumlah item kalau user mau nambah/kurangin pesanan.
-     */
     public function update(Request $request, int $bookId): RedirectResponse|Response
     {
         $validated = $request->validate([
@@ -112,9 +103,6 @@ class CartController extends Controller
         return back()->with('success', 'Jumlah item keranjang diperbarui.');
     }
 
-    /**
-     * Hapus item tertentu dari cart.
-     */
     public function remove(Request $request, int $bookId): RedirectResponse|Response
     {
         $cart = $request->session()->get('cart', []);

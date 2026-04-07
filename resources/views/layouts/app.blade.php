@@ -74,6 +74,19 @@
         $miniCartItems = auth()->check() && !auth()->user()->isAdmin() ? collect(request()->session()->get('cart', []))->values() : collect();
         $miniCartTotal = $miniCartItems->sum(fn (array $item): float => $item['price'] * $item['quantity']);
         $miniCartCount = $miniCartItems->sum('quantity');
+        $dueCodNotifications = auth()->check() && !auth()->user()->isAdmin()
+            ? \App\Models\Order::query()
+                ->where('user_id', auth()->id())
+                ->where('payment_method', 'COD')
+                ->where('status', 'Dikirim')
+                ->whereNotNull('estimated_delivery_at')
+                ->where('estimated_delivery_at', '<=', now())
+                ->whereNull('received_at')
+                ->latest('estimated_delivery_at')
+                ->limit(5)
+                ->get()
+            : collect();
+        $dueCodNotificationCount = $dueCodNotifications->count();
     @endphp
 
     <div class="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(37,99,235,0.10),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.10),_transparent_45%)]">
@@ -109,15 +122,54 @@
                             </a>
                             <a
                                 href="{{ route('orders.index') }}"
-                                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
-                                aria-label="Lihat pesanan"
-                                title="Pesanan"
+                                class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                title="Paket"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9l1.5 3v12H6V7.5l1.5-3Z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 10.5h6M9 14h5" />
-                                </svg>
+                                Paket
                             </a>
+                            <a
+                                href="{{ route('profile.edit') }}"
+                                class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                title="Profile"
+                            >
+                                Profile
+                            </a>
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    id="notification-bell-button"
+                                    class="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                    aria-label="Notifikasi COD"
+                                    title="Notifikasi COD"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 17.5h-4.5m8.25-2.75H6a1.5 1.5 0 0 1-.75-2.799l.558-.32A1.5 1.5 0 0 0 6.5 10.33V9a5.5 5.5 0 1 1 11 0v1.33c0 .538.287 1.036.75 1.3l.558.32A1.5 1.5 0 0 1 18 14.75Z" />
+                                    </svg>
+                                    @if ($dueCodNotificationCount > 0)
+                                        <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-white bg-rose-500 px-1 text-[11px] font-bold text-white">{{ $dueCodNotificationCount }}</span>
+                                    @endif
+                                </button>
+
+                                <div id="notification-bell-panel" class="pointer-events-none absolute right-0 z-50 mt-2 hidden w-80 rounded-2xl border border-slate-200 bg-white p-3 opacity-0 shadow-xl transition">
+                                    <p class="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Notifikasi COD</p>
+                                    @if ($dueCodNotificationCount === 0)
+                                        <p class="mt-2 rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-600">Belum ada notifikasi paket COD.</p>
+                                    @else
+                                        <div class="mt-2 space-y-2">
+                                            @foreach ($dueCodNotifications as $notificationOrder)
+                                                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                                    <p class="text-sm font-semibold text-slate-900">{{ $notificationOrder->order_code }}</p>
+                                                    <p class="mt-1 text-xs text-slate-600">Paket COD sudah sampai estimasi. Konfirmasi diterima dan dibayar.</p>
+                                                    <form action="{{ route('orders.confirm-received', $notificationOrder) }}" method="POST" class="mt-2">
+                                                        @csrf
+                                                        <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">Konfirmasi Diterima dan Dibayar</button>
+                                                    </form>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
                         @endif
                         <form action="{{ route('logout') }}" method="POST" class="inline">
                             @csrf
@@ -143,128 +195,23 @@
 
         @if (auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
             <div class="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-                <aside class="hidden w-64 shrink-0 lg:block">
-                    <div class="sticky top-24 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Admin Menu</p>
-                        <div class="mt-4 space-y-2">
-                            <a href="{{ route('admin.dashboard') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Dashboard</a>
-                            <a href="{{ route('admin.categories.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.categories.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Kategori</a>
-                            <a href="{{ route('admin.books.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.books.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Buku</a>
-                            <a href="{{ route('admin.messages.index') }}" class="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.messages.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">
-                                <span>Pesan Masuk</span>
-                                @if ($unreadContactMessages > 0)
-                                    <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">{{ $unreadContactMessages }}</span>
-                                @endif
-                            </a>
-                            <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">User</a>
-                            <a href="{{ route('admin.orders.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Pesanan</a>
-                        </div>
-                    </div>
-                </aside>
+                @include('layouts.partials.admin-navigation')
 
                 <main class="min-w-0 flex-1">
-                    <div class="mb-6 lg:hidden">
-                        <div class="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                            <a href="{{ route('admin.dashboard') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Dashboard</a>
-                            <a href="{{ route('admin.categories.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.categories.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Kategori</a>
-                            <a href="{{ route('admin.books.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.books.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Buku</a>
-                            <a href="{{ route('admin.messages.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.messages.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">
-                                Pesan{{ $unreadContactMessages > 0 ? ' (' . $unreadContactMessages . ')' : '' }}
-                            </a>
-                            <a href="{{ route('admin.users.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">User</a>
-                            <a href="{{ route('admin.orders.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Pesanan</a>
-                        </div>
-                    </div>
-
-                    @if (session('success'))
-                        <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                            {{ session('success') }}
-                        </div>
-                    @endif
-
-                    @if (session('error'))
-                        <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                            {{ session('error') }}
-                        </div>
-                    @endif
-
+                    @include('layouts.partials.alerts')
                     @yield('content')
                 </main>
             </div>
         @else
             <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-                @if (session('success'))
-                    <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                        {{ session('success') }}
-                    </div>
-                @endif
-
-                @if (session('error'))
-                    <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                        {{ session('error') }}
-                    </div>
-                @endif
-
+                @include('layouts.partials.alerts')
                 @yield('content')
             </main>
         @endif
 
         @auth
             @if (!auth()->user()->isAdmin())
-                <div id="mini-cart-overlay" class="pointer-events-none fixed inset-0 z-40 bg-slate-950/30 opacity-0 backdrop-blur-[2px] transition-all duration-500 ease-out"></div>
-                <aside id="mini-cart-panel" class="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm translate-y-4 scale-[0.98] opacity-0 pointer-events-none transition-all duration-500 ease-out will-change-transform sm:bottom-6 sm:right-6 sm:w-96">
-                    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5">
-                        <div class="border-b border-slate-100 px-5 py-4">
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-500">Keranjang Kamu</p>
-                                <h2 class="mt-1 text-lg font-bold text-slate-900">Daftar buku di keranjang</h2>
-                            </div>
-                        </div>
-
-                        <div class="max-h-[24rem] overflow-y-auto px-5 py-4">
-                            <div id="mini-cart-empty" class="{{ $miniCartItems->isEmpty() ? '' : 'hidden' }} rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                                Keranjang masih kosong. Tambahkan buku untuk melihat daftarnya di sini.
-                            </div>
-
-                            <div id="mini-cart-items" class="space-y-3 {{ $miniCartItems->isEmpty() ? 'hidden' : '' }}">
-                                @foreach ($miniCartItems as $item)
-                                    <div class="rounded-2xl bg-slate-50 p-3 ring-1 ring-transparent transition-all duration-200 hover:ring-brand-300" data-cart-mini-item="{{ $item['book_id'] }}">
-                                        <div class="flex gap-3">
-                                            <img src="{{ $item['image_url'] ?: 'https://images.unsplash.com/photo-1512820790803-d550eacf6090?auto=format&fit=crop&w=500&q=80' }}" alt="{{ $item['title'] }}" class="h-16 w-12 rounded-lg object-cover">
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-start justify-between gap-3">
-                                                    <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $item['title'] }}</p>
-                                                    <span class="inline-flex shrink-0 items-center rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-600">x{{ $item['quantity'] }}</span>
-                                                </div>
-                                                <p class="mt-1 text-xs text-slate-500">Rp {{ number_format($item['price'], 0, ',', '.') }}</p>
-                                                <div class="mt-3 flex flex-wrap items-center gap-2">
-                                                    <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-1">
-                                                        <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-slate-700 transition hover:bg-slate-100" data-cart-action="decrease" data-book-id="{{ $item['book_id'] }}">-</button>
-                                                        <span class="min-w-10 px-3 text-center text-sm font-semibold text-slate-900" data-cart-quantity="{{ $item['book_id'] }}">{{ $item['quantity'] }}</span>
-                                                        <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-slate-700 transition hover:bg-slate-100" data-cart-action="increase" data-book-id="{{ $item['book_id'] }}">+</button>
-                                                    </div>
-
-                                                    <button type="button" class="inline-flex items-center rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50" data-cart-action="remove" data-book-id="{{ $item['book_id'] }}">x</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <div class="border-t border-slate-100 px-5 py-4">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">Total</span>
-                                <span id="mini-cart-total" class="text-base font-bold text-slate-900">Rp {{ number_format($miniCartTotal, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                <a href="{{ route('cart.index') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-brand-600">Buka Keranjang</a>
-                                <a href="{{ route('store.catalog') }}" class="rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Lanjut Belanja</a>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
+                @include('layouts.partials.mini-cart')
             @endif
         @endauth
     </div>
@@ -272,6 +219,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const notificationBellButton = document.getElementById('notification-bell-button');
+            const notificationBellPanel = document.getElementById('notification-bell-panel');
             const cartPanel = document.getElementById('mini-cart-panel');
             const cartOverlay = document.getElementById('mini-cart-overlay');
             const cartItems = document.getElementById('mini-cart-items');
@@ -302,6 +251,24 @@
                 cartPanel.classList.remove('translate-y-0', 'scale-100', 'opacity-100');
                 cartOverlay.classList.add('opacity-0', 'pointer-events-none');
                 cartOverlay.classList.remove('opacity-100');
+            };
+
+            const openNotifications = () => {
+                if (!notificationBellPanel) {
+                    return;
+                }
+
+                notificationBellPanel.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+                notificationBellPanel.classList.add('opacity-100');
+            };
+
+            const closeNotifications = () => {
+                if (!notificationBellPanel) {
+                    return;
+                }
+
+                notificationBellPanel.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+                notificationBellPanel.classList.remove('opacity-100');
             };
 
             const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
@@ -479,6 +446,32 @@
                 }
             };
             cartOverlay?.addEventListener('click', closeCart);
+
+            if (notificationBellButton && notificationBellPanel) {
+                notificationBellButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (notificationBellPanel.classList.contains('hidden')) {
+                        openNotifications();
+                        return;
+                    }
+
+                    closeNotifications();
+                });
+
+                document.addEventListener('click', (event) => {
+                    const target = event.target;
+
+                    if (!(target instanceof Node)) {
+                        return;
+                    }
+
+                    if (!notificationBellPanel.contains(target) && !notificationBellButton.contains(target)) {
+                        closeNotifications();
+                    }
+                });
+            }
 
             document.addEventListener('click', async (event) => {
                 const actionButton = event.target.closest('[data-cart-action]');

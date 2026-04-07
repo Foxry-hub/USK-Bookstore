@@ -29,7 +29,6 @@
             @forelse ($orders as $order)
                 @php
                     $statusClasses = [
-                        'Menunggu Pembayaran' => 'bg-amber-100 text-amber-800',
                         'Menunggu Konfirmasi' => 'bg-blue-100 text-blue-800',
                         'Menunggu Verifikasi' => 'bg-indigo-100 text-indigo-800',
                         'Dibayar' => 'bg-emerald-100 text-emerald-800',
@@ -74,16 +73,44 @@
                             @endif
                         </div>
 
-                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="flex items-center gap-2">
-                            @csrf
-                            @method('PATCH')
-                            <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                @foreach (['Menunggu Pembayaran', 'Menunggu Konfirmasi', 'Menunggu Verifikasi', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Pembayaran Gagal', 'Refund'] as $status)
-                                    <option value="{{ $status }}" @selected($order->status === $status)>{{ $status }}</option>
-                                @endforeach
-                            </select>
-                            <button type="submit" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Update</button>
-                        </form>
+                        <div class="flex flex-wrap items-center gap-2">
+                            @if ($order->status === 'Menunggu Konfirmasi' || $order->status === 'Dibayar' || $order->status === 'Pembayaran Gagal')
+                                <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="Diproses">
+                                    <button type="submit" class="rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700">Diproses</button>
+                                </form>
+                            @endif
+
+                            @if ($order->status === 'Diproses')
+                                <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="Dikirim">
+                                    <button type="submit" class="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700">Dikirim</button>
+                                </form>
+                            @endif
+
+                            @if ($order->status === 'Dikirim')
+                                <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="Selesai">
+                                    <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">Tandai Selesai</button>
+                                </form>
+                            @endif
+
+                            @if ($order->status === 'Selesai')
+                                <span class="inline-flex cursor-default rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Selesai</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                        <p>Shipped at: <span class="font-semibold text-slate-900">{{ $order->shipped_at?->format('d M Y, H:i') ?? '-' }}</span></p>
+                        <p>Estimasi sampai: <span class="font-semibold text-slate-900">{{ $order->estimated_delivery_at?->format('d M Y, H:i') ?? '-' }}</span></p>
+                        <p>Selesai: <span class="font-semibold text-slate-900">{{ $order->received_at?->format('d M Y, H:i') ?? '-' }}</span></p>
                     </div>
 
                     <div class="mt-4 rounded-xl bg-slate-50 p-3">

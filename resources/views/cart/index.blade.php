@@ -5,6 +5,7 @@
     $subTotal = $total;
     $shippingFee = 0;
     $grandTotal = $subTotal + $shippingFee;
+    $currentUser = auth()->user();
 @endphp
 
 <style>
@@ -70,18 +71,25 @@
                     </div>
                 </div>
 
+                @if (blank($currentUser?->phone) || blank($currentUser?->address))
+                    <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        Profile kamu belum lengkap. Lengkapi dulu nomor telepon dan alamat di halaman Profile supaya checkout lebih cepat.
+                        <a href="{{ route('profile.edit') }}" class="ml-1 font-semibold underline">Buka Profile</a>
+                    </div>
+                @endif
+
                 <form action="{{ route('checkout.store') }}" method="POST" class="mt-5 space-y-4">
                     @csrf
 
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor HP</label>
-                        <input type="text" name="phone" value="{{ old('phone') }}" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100" required>
+                        <input type="text" name="phone" value="{{ old('phone', $currentUser?->phone) }}" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100" required>
                         @error('phone') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Alamat Pengiriman</label>
-                        <textarea name="shipping_address" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100" required>{{ old('shipping_address') }}</textarea>
+                        <textarea name="shipping_address" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100" required>{{ old('shipping_address', $currentUser?->address) }}</textarea>
                         @error('shipping_address') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
 
@@ -93,110 +101,35 @@
                     <div>
                         @php
                             $oldMethod = old('payment_method', 'MIDTRANS');
-                            $oldDetail = old('payment_detail', $oldMethod === 'COD' ? 'cod' : 'bank_transfer');
+                            $oldDetail = old('payment_detail', $oldMethod === 'COD' ? 'cod' : 'card');
                         @endphp
                         <input type="hidden" name="payment_method" id="payment-method-input" value="{{ $oldMethod }}">
 
                         <p class="mb-3 text-sm font-semibold text-slate-800">Payment details</p>
-                        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="pay-option group flex h-full min-w-0 cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
                                 <input type="radio" name="payment_detail" value="card" class="sr-only" @checked($oldDetail === 'card')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
+                                <div class="flex w-full items-start justify-between gap-3">
+                                    <div class="flex min-w-0 items-start gap-3">
                                         <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5h18v9H3z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5h18" />
                                             </svg>
                                         </span>
-                                        <span>
+                                        <span class="min-w-0">
                                             <span class="block text-sm font-semibold text-slate-800">Debit/Credit Card</span>
-                                            <span class="mt-1 block text-xs text-slate-500">Diproses via Midtrans.</span>
+                                            <span class="mt-1 block text-xs leading-snug text-slate-500">Bayar pakai kartu debit atau credit.</span>
                                         </span>
                                     </div>
                                     <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
                                 </div>
                             </label>
 
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
-                                <input type="radio" name="payment_detail" value="bank_transfer" class="sr-only" @checked($oldDetail === 'bank_transfer')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
-                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 9 12 3l9.75 6M4.5 10.5h15v9h-15z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 14.25h7.5" />
-                                            </svg>
-                                        </span>
-                                        <span>
-                                            <span class="block text-sm font-semibold text-slate-800">Bank Transfer</span>
-                                            <span class="mt-1 block text-xs text-slate-500">VA BCA, BNI, BRI, dll.</span>
-                                        </span>
-                                    </div>
-                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
-                                </div>
-                            </label>
-
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
-                                <input type="radio" name="payment_detail" value="gopay" class="sr-only" @checked($oldDetail === 'gopay')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
-                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">Go</span>
-                                        <span>
-                                            <span class="block text-sm font-semibold text-slate-800">GoPay</span>
-                                            <span class="mt-1 block text-xs text-slate-500">Bayar cepat via app GoPay.</span>
-                                        </span>
-                                    </div>
-                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
-                                </div>
-                            </label>
-
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
-                                <input type="radio" name="payment_detail" value="dana" class="sr-only" @checked($oldDetail === 'dana')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
-                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">DANA</span>
-                                        <span>
-                                            <span class="block text-sm font-semibold text-slate-800">DANA</span>
-                                            <span class="mt-1 block text-xs text-slate-500">e-Wallet DANA via Midtrans.</span>
-                                        </span>
-                                    </div>
-                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
-                                </div>
-                            </label>
-
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
-                                <input type="radio" name="payment_detail" value="qris" class="sr-only" @checked($oldDetail === 'qris')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
-                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">QR</span>
-                                        <span>
-                                            <span class="block text-sm font-semibold text-slate-800">QRIS</span>
-                                            <span class="mt-1 block text-xs text-slate-500">Scan dari mobile banking/e-wallet.</span>
-                                        </span>
-                                    </div>
-                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
-                                </div>
-                            </label>
-
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
-                                <input type="radio" name="payment_detail" value="shopeepay" class="sr-only" @checked($oldDetail === 'shopeepay')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
-                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">SP</span>
-                                        <span>
-                                            <span class="block text-sm font-semibold text-slate-800">ShopeePay</span>
-                                            <span class="mt-1 block text-xs text-slate-500">Pembayaran instan ShopeePay.</span>
-                                        </span>
-                                    </div>
-                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
-                                </div>
-                            </label>
-
-                            <label class="pay-option group cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400 sm:col-span-2 xl:col-span-3" data-pay-option>
+                            <label class="pay-option group flex h-full min-w-0 cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
                                 <input type="radio" name="payment_detail" value="cod" class="sr-only" @checked($oldDetail === 'cod')>
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-3">
+                                <div class="flex w-full items-start justify-between gap-3">
+                                    <div class="flex min-w-0 items-start gap-3">
                                         <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5h18v9H3z" />
@@ -204,9 +137,9 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 15h3" />
                                             </svg>
                                         </span>
-                                        <span>
+                                        <span class="min-w-0">
                                             <span class="block text-sm font-semibold text-slate-800">Cash On Delivery (COD)</span>
-                                            <span class="mt-1 block text-xs text-slate-500">Bayar langsung saat paket diterima.</span>
+                                            <span class="mt-1 block text-xs leading-snug text-slate-500">Barang datang dulu, baru bayar di tempat.</span>
                                         </span>
                                     </div>
                                     <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
@@ -220,20 +153,29 @@
                 </form>
             </div>
 
-            <div id="cart-items" class="space-y-3">
+        </div>
+
+        <aside class="cart-summary-sticky h-fit space-y-4 xl:sticky">
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Item Pesanan</p>
+                        <h2 class="mt-1 text-lg font-bold text-slate-900">Barang yang kamu pilih</h2>
+                    </div>
+                </div>
+
+                <div id="cart-items" class="space-y-3">
                 @forelse ($cart as $item)
-                    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-cart-item="{{ $item['book_id'] }}">
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="flex items-center gap-3">
+                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm" data-cart-item="{{ $item['book_id'] }}">
+                        <div class="flex items-start gap-3">
+                            <div class="flex min-w-0 flex-1 items-start gap-3">
                                 <img src="{{ $item['image_url'] ?: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=500&q=80' }}" alt="{{ $item['title'] }}" class="h-20 w-14 rounded-lg object-cover">
-                                <div>
-                                    <h3 class="text-sm font-bold text-slate-900">{{ $item['title'] }}</h3>
-                                    <p class="mt-1 text-xs text-slate-500">Rp {{ number_format($item['price'], 0, ',', '.') }}</p>
-                                    <p class="mt-1 text-xs font-semibold text-slate-700">Subtotal: Rp {{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }}</p>
+                                <div class="min-w-0">
+                                    <h3 class="text-sm font-bold leading-snug text-slate-900">{{ $item['title'] }}</h3>
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-3">
+                            <div class="flex shrink-0 items-center gap-3">
                                 <div class="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
                                     <button type="button" class="cart-stepper flex h-9 w-9 items-center justify-center rounded-lg text-base font-bold text-slate-700 hover:bg-white" data-cart-action="decrease" data-book-id="{{ $item['book_id'] }}">-</button>
                                     <span class="min-w-10 px-3 text-center text-sm font-semibold text-slate-900" data-cart-quantity="{{ $item['book_id'] }}">{{ $item['quantity'] }}</span>
@@ -243,7 +185,14 @@
                                 <form action="{{ route('cart.remove', $item['book_id']) }}" method="POST" class="cart-remove-form">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600">Hapus</button>
+                                    <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 text-rose-600 transition hover:bg-rose-50" aria-label="Hapus item" title="Hapus item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4.75A1.75 1.75 0 0 1 9.75 3h4.5A1.75 1.75 0 0 1 16 4.75V6" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l.75 12.5A1.75 1.75 0 0 0 8.5 20h7a1.75 1.75 0 0 0 1.75-1.5L18 6" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 10v5M14 10v5" />
+                                        </svg>
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -253,38 +202,37 @@
                         Keranjang kamu masih kosong nih.
                     </div>
                 @endforelse
-            </div>
-        </div>
-
-        <aside class="cart-summary-sticky h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 xl:sticky">
-            <h2 class="text-xl font-bold text-slate-900">Order summary</h2>
-            <p class="mt-1 text-sm text-slate-500">Checkout aman dengan Midtrans Sandbox.</p>
-
-            <div class="mt-5 space-y-3 border-t border-slate-100 pt-4">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-500">Subtotal</span>
-                    <span class="font-semibold text-slate-800">Rp {{ number_format($subTotal, 0, ',', '.') }}</span>
                 </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-500">Shipping</span>
-                    <span class="font-semibold text-emerald-600">Gratis</span>
+            </section>
+
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 class="text-xl font-bold text-slate-900">Order summary</h2>
+                <p class="mt-1 text-sm text-slate-500">Checkout aman dengan Midtrans Sandbox.</p>
+
+                <div class="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-slate-500">Subtotal</span>
+                        <span class="font-semibold text-slate-800">Rp {{ number_format($subTotal, 0, ',', '.') }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-slate-500">Shipping</span>
+                        <span class="font-semibold text-emerald-600">Gratis</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                <span class="text-sm font-semibold text-slate-700">Total</span>
-                <span id="cart-total" class="text-2xl font-extrabold text-slate-900">Rp {{ number_format($grandTotal, 0, ',', '.') }}</span>
-            </div>
+                <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                    <span class="text-sm font-semibold text-slate-700">Total</span>
+                    <span id="cart-total" class="text-2xl font-extrabold text-slate-900">Rp {{ number_format($grandTotal, 0, ',', '.') }}</span>
+                </div>
 
-            <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Metode Midtrans</p>
-                <ul class="mt-2 space-y-1 text-sm text-slate-600">
-                    <li>Bank Transfer (VA)</li>
-                    <li>GoPay</li>
-                    <li>DANA</li>
-                    <li>QRIS</li>
-                </ul>
-            </div>
+                <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Metode Midtrans</p>
+                    <ul class="mt-2 space-y-1 text-sm text-slate-600">
+                        <li>Debit/Credit Card</li>
+                        <li>COD</li>
+                    </ul>
+                </div>
+            </section>
         </aside>
     </div>
 </section>
