@@ -70,7 +70,10 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
     @php
-        $unreadContactMessages = auth()->check() && auth()->user()->isAdmin() ? \App\Models\ContactMessage::where('is_read', false)->count() : 0;
+        $isAdminUser = auth()->check() && auth()->user()->isAdmin();
+        $isAdminRoute = request()->routeIs('admin.*');
+        $isAdminLandingPreview = $isAdminUser && request()->routeIs('admin.landing-preview');
+        $unreadContactMessages = $isAdminUser ? \App\Models\ContactMessage::where('is_read', false)->count() : 0;
         $miniCartItems = auth()->check() && !auth()->user()->isAdmin() ? collect(request()->session()->get('cart', []))->values() : collect();
         $miniCartTotal = $miniCartItems->sum(fn (array $item): float => $item['price'] * $item['quantity']);
         $miniCartCount = $miniCartItems->sum('quantity');
@@ -92,23 +95,51 @@
     <div class="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(37,99,235,0.10),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.10),_transparent_45%)]">
         <nav class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur">
             <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                <a href="{{ route('store.index') }}" class="inline-flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-900">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white">
-                        <img src="{{ asset('assets/logo.png') }}" alt="Logo BookStore" class="h-5 w-5 object-contain">
-                    </span>
-                    <span>BookStore</span>
-                </a>
+                <div class="flex items-center gap-3">
+                    @if ($isAdminLandingPreview)
+                        <button type="button" id="admin-preview-sidebar-open" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition hover:bg-slate-100" aria-label="Buka sidebar admin" title="Buka sidebar admin">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    @endif
 
-                <div class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
-                    <a href="{{ route('store.index') }}" class="transition hover:text-slate-900">Home</a>
-                    <a href="{{ route('store.index') }}#catalog" class="transition hover:text-slate-900">Product</a>
-                    <a href="{{ route('store.index') }}#about" class="transition hover:text-slate-900">About Us</a>
-                    <a href="{{ route('store.index') }}#contact" class="transition hover:text-slate-900">Contact</a>
+                    @if ($isAdminUser)
+                        <span class="inline-flex select-none items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-900">
+                            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white">
+                                <img src="{{ asset('assets/logo.png') }}" alt="Logo BookStore" class="h-5 w-5 object-contain">
+                            </span>
+                            <span>BookStore</span>
+                        </span>
+                    @else
+                        <a href="{{ route('store.index') }}" class="inline-flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-900">
+                            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white">
+                                <img src="{{ asset('assets/logo.png') }}" alt="Logo BookStore" class="h-5 w-5 object-contain">
+                            </span>
+                            <span>BookStore</span>
+                        </a>
+                    @endif
                 </div>
+
+                @if ($isAdminLandingPreview)
+                    <div class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
+                        <span class="cursor-not-allowed text-slate-400">Home</span>
+                        <span class="cursor-not-allowed text-slate-400">Product</span>
+                        <span class="cursor-not-allowed text-slate-400">About Us</span>
+                        <span class="cursor-not-allowed text-slate-400">Contact</span>
+                    </div>
+                @elseif (!$isAdminUser)
+                    <div class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
+                        <a href="{{ route('store.index') }}" class="transition hover:text-slate-900">Home</a>
+                        <a href="{{ route('store.index') }}#catalog" class="transition hover:text-slate-900">Product</a>
+                        <a href="{{ route('store.index') }}#about" class="transition hover:text-slate-900">About Us</a>
+                        <a href="{{ route('store.index') }}#contact" class="transition hover:text-slate-900">Contact</a>
+                    </div>
+                @endif
 
                 <div class="flex items-center gap-2 sm:gap-4">
                     @auth
-                        @if (auth()->user()->isAdmin())
+                        @if ($isAdminUser)
                             <a href="{{ route('admin.dashboard') }}" class="relative rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
                                 Dashboard Admin
                                 @if ($unreadContactMessages > 0)
@@ -184,6 +215,7 @@
                                 </div>
                             </div>
                         @endif
+
                         <form action="{{ route('logout') }}" method="POST" class="inline">
                             @csrf
                             <button
@@ -206,7 +238,43 @@
             </div>
         </nav>
 
-        @if (auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
+        @if ($isAdminLandingPreview)
+            <div id="admin-preview-sidebar-overlay" class="fixed inset-0 z-40 hidden bg-slate-950/30 opacity-0 transition"></div>
+            <aside id="admin-preview-sidebar" class="fixed left-0 top-0 z-50 h-full w-72 -translate-x-full overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-2xl transition-transform duration-300">
+                <div class="mb-3 flex items-center justify-between">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Admin Menu</p>
+                    <button type="button" id="admin-preview-sidebar-close" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100" aria-label="Tutup sidebar admin" title="Tutup sidebar admin">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    <a href="{{ route('admin.dashboard') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Dashboard</a>
+                    <a href="{{ route('admin.categories.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.categories.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Kategori</a>
+                    <a href="{{ route('admin.books.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.books.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Buku</a>
+                    <a href="{{ route('admin.messages.index') }}" class="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.messages.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">
+                        <span>Pesan Masuk</span>
+                        @if ($unreadContactMessages > 0)
+                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">{{ $unreadContactMessages }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">User</a>
+                    <a href="{{ route('admin.orders.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Pesanan</a>
+                    <a href="{{ route('admin.landing-preview') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.landing-preview') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Preview Landing</a>
+                </div>
+            </aside>
+
+            <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                @include('layouts.partials.alerts')
+                <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                    Mode Preview Admin aktif. Tampilan landing page hanya untuk dilihat dan tidak bisa diinteraksikan.
+                </div>
+                <div class="admin-preview-locked">
+                    @yield('content')
+                </div>
+            </main>
+        @elseif (auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
             <div class="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
                 @include('layouts.partials.admin-navigation')
 
@@ -243,6 +311,42 @@
             const cartPageItems = document.getElementById('cart-items');
             const cartPageEmptyTemplate = document.getElementById('cart-empty-template');
             const cartPageTotal = document.getElementById('cart-total');
+            const adminPreviewSidebar = document.getElementById('admin-preview-sidebar');
+            const adminPreviewSidebarOverlay = document.getElementById('admin-preview-sidebar-overlay');
+            const adminPreviewSidebarOpen = document.getElementById('admin-preview-sidebar-open');
+            const adminPreviewSidebarClose = document.getElementById('admin-preview-sidebar-close');
+
+            const openAdminPreviewSidebar = () => {
+                if (!adminPreviewSidebar || !adminPreviewSidebarOverlay) {
+                    return;
+                }
+
+                adminPreviewSidebar.classList.remove('-translate-x-full');
+                adminPreviewSidebar.classList.add('translate-x-0');
+                adminPreviewSidebarOverlay.classList.remove('hidden', 'opacity-0');
+                adminPreviewSidebarOverlay.classList.add('opacity-100');
+            };
+
+            const closeAdminPreviewSidebar = () => {
+                if (!adminPreviewSidebar || !adminPreviewSidebarOverlay) {
+                    return;
+                }
+
+                adminPreviewSidebar.classList.add('-translate-x-full');
+                adminPreviewSidebar.classList.remove('translate-x-0');
+                adminPreviewSidebarOverlay.classList.add('opacity-0');
+                adminPreviewSidebarOverlay.classList.remove('opacity-100');
+
+                setTimeout(() => {
+                    if (adminPreviewSidebarOverlay.classList.contains('opacity-0')) {
+                        adminPreviewSidebarOverlay.classList.add('hidden');
+                    }
+                }, 200);
+            };
+
+            adminPreviewSidebarOpen?.addEventListener('click', openAdminPreviewSidebar);
+            adminPreviewSidebarClose?.addEventListener('click', closeAdminPreviewSidebar);
+            adminPreviewSidebarOverlay?.addEventListener('click', closeAdminPreviewSidebar);
 
             const openCart = () => {
                 if (!cartPanel || !cartOverlay) {
@@ -600,5 +704,21 @@
             });
         });
     </script>
+
+    @if ($isAdminLandingPreview)
+        <style>
+            .admin-preview-locked {
+                position: relative;
+            }
+
+            .admin-preview-locked::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                z-index: 30;
+                background: transparent;
+            }
+        </style>
+    @endif
 </body>
 </html>

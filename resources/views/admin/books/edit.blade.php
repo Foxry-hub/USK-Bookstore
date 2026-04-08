@@ -4,7 +4,7 @@
     <section class="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6">
         <h1 class="text-2xl font-bold text-slate-900">Edit Buku</h1>
 
-        <form action="{{ route('admin.books.update', $book) }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
+        <form action="{{ route('admin.books.update', $book) }}" method="POST" enctype="multipart/form-data" class="mt-5 grid gap-4 md:grid-cols-2">
             @csrf
             @method('PUT')
             <div class="md:col-span-2">
@@ -37,6 +37,40 @@
                 @error('image_url') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div class="md:col-span-2">
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Upload Gambar Utama (Opsional)</label>
+                <input type="file" name="image_file" accept="image/*" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700">
+                <p class="mt-1 text-xs text-slate-500">Jika diisi, file upload akan menggantikan gambar utama saat ini.</p>
+                @error('image_file') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="md:col-span-2">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <label class="block text-sm font-semibold text-slate-700">Gambar Tambahan Tersimpan</label>
+                    <span class="text-xs text-slate-500">Klik hapus untuk menandai gambar yang ingin dihapus</span>
+                </div>
+                @php
+                    $existingImages = old('existing_image_urls', $book->image_urls ?? []);
+                @endphp
+                <div id="existing-image-list" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    @forelse ($existingImages as $existingImage)
+                        <div class="existing-image-card overflow-hidden rounded-xl border border-slate-200 bg-white" data-image-url="{{ $existingImage }}">
+                            <img src="{{ $existingImage }}" alt="Gambar tambahan" class="h-28 w-full object-cover">
+                            <div class="space-y-2 p-3">
+                                <p class="truncate text-xs text-slate-500" title="{{ $existingImage }}">{{ $existingImage }}</p>
+                                <input type="hidden" name="existing_image_urls[]" value="{{ $existingImage }}">
+                                <button type="button" class="remove-existing-image w-full rounded-lg border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-600">Hapus Gambar Ini</button>
+                            </div>
+                        </div>
+                    @empty
+                        <div id="no-existing-images" class="col-span-full rounded-xl border border-dashed border-slate-300 px-4 py-4 text-sm text-slate-500">Belum ada gambar tambahan tersimpan.</div>
+                    @endforelse
+                </div>
+                <div id="removed-existing-images"></div>
+                @error('existing_image_urls') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                @error('existing_image_urls.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                @error('remove_existing_images') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                @error('remove_existing_images.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="md:col-span-2">
                 <div class="mb-2 flex items-center justify-between gap-3">
                     <label class="block text-sm font-semibold text-slate-700">Gambar Tambahan</label>
                     <button type="button" id="add-image-field" aria-label="Tambah kolom gambar" title="Tambah kolom gambar" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-900 bg-slate-900 text-white transition hover:bg-slate-800">
@@ -48,7 +82,7 @@
                 </div>
                 <div id="image-fields" class="space-y-2">
                     @php
-                        $oldImages = old('image_urls', $book->image_urls ?? ['']);
+                        $oldImages = old('image_urls', ['']);
                     @endphp
                     @foreach ($oldImages as $index => $oldImage)
                         <div class="flex gap-2">
@@ -59,6 +93,12 @@
                 </div>
                 @error('image_urls') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 @error('image_urls.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Upload Gambar Tambahan (Opsional)</label>
+                <input type="file" name="image_files[]" accept="image/*" multiple class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700">
+                @error('image_files') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                @error('image_files.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div class="md:col-span-2">
                 <div class="mb-2 flex items-center justify-between">
@@ -90,7 +130,11 @@
         const imageFieldsContainer = document.getElementById('image-fields');
         const addImageFieldButton = document.getElementById('add-image-field');
         const imagePreviewContainer = document.getElementById('image-previews');
+        const existingImageList = document.getElementById('existing-image-list');
+        const removedExistingImagesContainer = document.getElementById('removed-existing-images');
         const mainImageInput = document.querySelector('input[name="image_url"]');
+        const mainImageFileInput = document.querySelector('input[name="image_file"]');
+        const extraImageFileInput = document.querySelector('input[name="image_files[]"]');
 
         function getImageUrls() {
             const urls = [];
@@ -105,15 +149,36 @@
                 }
             });
 
+            existingImageList?.querySelectorAll('input[name="existing_image_urls[]"]').forEach(input => {
+                if (input.value.trim()) {
+                    urls.push(input.value.trim());
+                }
+            });
+
             return [...new Set(urls)];
+        }
+
+        function getSelectedFiles() {
+            const files = [];
+
+            if (mainImageFileInput?.files?.length) {
+                files.push(...Array.from(mainImageFileInput.files));
+            }
+
+            if (extraImageFileInput?.files?.length) {
+                files.push(...Array.from(extraImageFileInput.files));
+            }
+
+            return files;
         }
 
         function renderImagePreview() {
             const urls = getImageUrls();
+            const files = getSelectedFiles();
             imagePreviewContainer.innerHTML = '';
 
-            if (urls.length === 0) {
-                imagePreviewContainer.innerHTML = '<div class="col-span-full rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">Belum ada URL gambar untuk dipreview.</div>';
+            if (urls.length === 0 && files.length === 0) {
+                imagePreviewContainer.innerHTML = '<div class="col-span-full rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">Belum ada gambar untuk dipreview.</div>';
                 return;
             }
 
@@ -124,9 +189,53 @@
                     <div class="h-24 w-full bg-slate-100">
                         <img src="${url}" alt="Preview gambar ${index + 1}" class="h-full w-full object-cover" onerror="this.closest('div').classList.add('flex','items-center','justify-center'); this.replaceWith(Object.assign(document.createElement('span'), {className:'text-xs text-rose-600', textContent:'Gagal memuat gambar'}));">
                     </div>
-                    <p class="truncate px-2 py-1 text-[11px] text-slate-600" title="${url}">${url}</p>
+                    <p class="truncate px-2 py-1 text-[11px] text-slate-600" title="${url}">URL: ${url}</p>
                 `;
                 imagePreviewContainer.appendChild(card);
+            });
+
+            files.forEach((file, index) => {
+                const temporaryUrl = URL.createObjectURL(file);
+                const card = document.createElement('div');
+                card.className = 'overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50';
+                card.innerHTML = `
+                    <div class="h-24 w-full bg-emerald-100">
+                        <img src="${temporaryUrl}" alt="Preview file ${index + 1}" class="h-full w-full object-cover">
+                    </div>
+                    <p class="truncate px-2 py-1 text-[11px] text-emerald-700" title="${file.name}">FILE: ${file.name}</p>
+                `;
+                imagePreviewContainer.appendChild(card);
+            });
+        }
+
+        function bindExistingImageRemoveButtons() {
+            existingImageList?.querySelectorAll('.remove-existing-image').forEach(button => {
+                button.onclick = () => {
+                    const card = button.closest('.existing-image-card');
+                    const imageUrl = card?.dataset.imageUrl;
+
+                    if (!card || !imageUrl) {
+                        return;
+                    }
+
+                    const hiddenRemoveInput = document.createElement('input');
+                    hiddenRemoveInput.type = 'hidden';
+                    hiddenRemoveInput.name = 'remove_existing_images[]';
+                    hiddenRemoveInput.value = imageUrl;
+                    removedExistingImagesContainer.appendChild(hiddenRemoveInput);
+
+                    card.remove();
+
+                    if (!existingImageList.querySelector('.existing-image-card') && !document.getElementById('no-existing-images')) {
+                        const emptyState = document.createElement('div');
+                        emptyState.id = 'no-existing-images';
+                        emptyState.className = 'col-span-full rounded-xl border border-dashed border-slate-300 px-4 py-4 text-sm text-slate-500';
+                        emptyState.textContent = 'Belum ada gambar tambahan tersimpan.';
+                        existingImageList.appendChild(emptyState);
+                    }
+
+                    renderImagePreview();
+                };
             });
         }
 
@@ -171,8 +280,11 @@
 
         mainImageInput?.addEventListener('input', renderImagePreview);
         mainImageInput?.addEventListener('change', renderImagePreview);
+        mainImageFileInput?.addEventListener('change', renderImagePreview);
+        extraImageFileInput?.addEventListener('change', renderImagePreview);
         bindImageInputListeners();
         bindRemoveButtons();
+        bindExistingImageRemoveButtons();
         renderImagePreview();
     </script>
 @endsection

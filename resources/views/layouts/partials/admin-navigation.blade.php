@@ -13,6 +13,7 @@
             </a>
             <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">User</a>
             <a href="{{ route('admin.orders.index') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Pesanan</a>
+            <a href="{{ route('admin.landing-preview') }}" class="block rounded-2xl px-4 py-3 text-sm font-semibold {{ request()->routeIs('admin.landing-preview') ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100' }}">Preview Landing</a>
         </div>
     </div>
 </aside>
@@ -27,5 +28,6 @@
         </a>
         <a href="{{ route('admin.users.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.users.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">User</a>
         <a href="{{ route('admin.orders.index') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.orders.*') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Pesanan</a>
+        <a href="{{ route('admin.landing-preview') }}" class="whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold {{ request()->routeIs('admin.landing-preview') ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Preview Landing</a>
     </div>
 </div>

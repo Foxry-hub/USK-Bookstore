@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function (): void {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function (): void {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/landing-preview', [StorefrontController::class, 'index'])->name('landing-preview');
 
     Route::resource('categories', AdminCategoryController::class)->except(['show']);
     Route::resource('books', AdminBookController::class)->except(['show']);
