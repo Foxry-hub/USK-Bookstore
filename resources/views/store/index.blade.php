@@ -113,7 +113,7 @@
         </div>
     </section>
 
-    <section id="about" class="mt-12 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm lg:p-10">
+    <section id="about" style="scroll-margin-top: 6.5rem;" class="mt-12 rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm lg:p-10">
         <div class="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-500">About Us</p>
@@ -137,7 +137,7 @@
         </div>
     </section>
 
-    <section id="contact" class="mt-10 rounded-[2rem] border border-slate-200 bg-[#d7d7d7] p-4 shadow-sm sm:p-6 lg:p-8">
+    <section id="contact" style="scroll-margin-top: 6.5rem;" class="mt-10 rounded-[2rem] border border-slate-200 bg-[#d7d7d7] p-4 shadow-sm sm:p-6 lg:p-8">
         <div class="rounded-[1.6rem] border border-white/80 bg-[#f7f7f7] p-6 lg:p-8">
             <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
                 <div>

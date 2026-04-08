@@ -98,12 +98,15 @@
                     </span>
                     <span>BookStore</span>
                 </a>
-                <div class="flex items-center gap-2 sm:gap-4">
-                    @if (!auth()->check())
-                        <a href="{{ route('store.index') }}#about" class="hidden text-sm font-medium text-slate-600 hover:text-slate-900 sm:inline">About Us</a>
-                        <a href="{{ route('store.index') }}#contact" class="hidden text-sm font-medium text-slate-600 hover:text-slate-900 sm:inline">Kontak</a>
-                    @endif
 
+                <div class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
+                    <a href="{{ route('store.index') }}" class="transition hover:text-slate-900">Home</a>
+                    <a href="{{ route('store.index') }}#catalog" class="transition hover:text-slate-900">Product</a>
+                    <a href="{{ route('store.index') }}#about" class="transition hover:text-slate-900">About Us</a>
+                    <a href="{{ route('store.index') }}#contact" class="transition hover:text-slate-900">Contact</a>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-4">
                     @auth
                         @if (auth()->user()->isAdmin())
                             <a href="{{ route('admin.dashboard') }}" class="relative rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
@@ -127,17 +130,23 @@
                             </a>
                             <a
                                 href="{{ route('orders.index') }}"
-                                class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
                                 title="Paket"
+                                aria-label="Paket"
                             >
-                                Paket
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511v7.24a2.25 2.25 0 0 1-1.12 1.95l-6.75 3.857a2.25 2.25 0 0 1-2.26 0l-6.75-3.857a2.25 2.25 0 0 1-1.12-1.95v-7.24m18 0a2.25 2.25 0 0 0-1.133-1.957l-6.75-3.857a2.25 2.25 0 0 0-2.234 0L3.383 6.554A2.25 2.25 0 0 0 2.25 8.511m18 0-8.25 4.714m-9.75-4.714 8.25 4.714m0 0v8.775" />
+                                </svg>
                             </a>
                             <a
                                 href="{{ route('profile.edit') }}"
-                                class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
                                 title="Profile"
+                                aria-label="Profile"
                             >
-                                Profile
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75a17.933 17.933 0 0 1-7.499-1.632Z" />
+                                </svg>
                             </a>
                             <div class="relative">
                                 <button
