@@ -78,82 +78,185 @@
                         'refund' => 'bg-slate-200 text-slate-700',
                         'partial_refund' => 'bg-slate-200 text-slate-700',
                     ];
+
+                    $statusSteps = [
+                        'Menunggu Konfirmasi' => 1,
+                        'Menunggu Verifikasi' => 1,
+                        'Dibayar' => 1,
+                        'Diproses' => 2,
+                        'Dikirim' => 3,
+                        'Selesai' => 4,
+                        'Pembayaran Gagal' => 1,
+                        'Refund' => 4,
+                    ];
+
+                    $currentStep = $statusSteps[$order->status] ?? 1;
+                    $progressWidthClass = match ($currentStep) {
+                        1 => 'w-[12.5%]',
+                        2 => 'w-[37.5%]',
+                        3 => 'w-[62.5%]',
+                        default => 'w-[87.5%]',
+                    };
+                    $paymentMethodLabel = match (strtoupper((string) $order->payment_method)) {
+                        'MIDTRANS' => 'Credit Card / Debit',
+                        'COD' => 'COD',
+                        default => $order->payment_method,
+                    };
+
+                    $groupedItems = $order->items
+                        ->groupBy(fn ($item) => (string) ($item->book_id ?? ('missing-' . $item->id)))
+                        ->map(function ($items) {
+                            $firstItem = $items->first();
+                            $book = $firstItem?->book;
+
+                            return [
+                                'title' => $book?->title ?? 'Buku tidak ditemukan',
+                                'image' => $book?->image_url ?: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
+                                'quantity' => (int) $items->sum('quantity'),
+                                'subtotal' => (float) $items->sum('subtotal'),
+                            ];
+                        })
+                        ->values();
                 @endphp
-                <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 class="text-lg font-bold text-slate-900">{{ $order->order_code }}</h2>
-                        <span class="w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $statusClasses[$order->status] ?? 'bg-slate-100 text-slate-700' }}">{{ $statusLabels[$order->status] ?? $order->status }}</span>
-                    </div>
-                    <p class="mt-2 text-sm text-slate-600">Total: <span class="font-semibold">Rp {{ number_format($order->total_price, 0, ',', '.') }}</span></p>
-                    <p class="text-sm text-slate-600">Metode Bayar: {{ $order->payment_method }}</p>
-                    <p class="text-sm text-slate-600">Alamat Kirim: {{ $order->shipping_address }}</p>
-                    <p class="text-sm text-slate-600">No. Telp: {{ $order->phone }}</p>
-                    @if ($order->midtrans_transaction_status)
-                        <div class="mt-1 text-sm text-slate-600">
-                            <span>Status Payment Gateway:</span>
-                            <span class="ml-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $paymentStatusClasses[$order->midtrans_transaction_status] ?? 'bg-slate-100 text-slate-700' }}">{{ $order->midtrans_transaction_status }}</span>
-                        </div>
-                    @endif
-
-                    @if ($order->status === 'Dikirim')
-                        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                            @if ($order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at))
-                                Paket diperkirakan sudah sampai. Silakan konfirmasi kalau sudah diterima.
-                            @else
-                                Paket sedang dalam perjalanan. Estimasi sampai: {{ $order->estimated_delivery_at?->format('d M Y, H:i') ?? '-' }}.
-                            @endif
-                        </div>
-                    @endif
-
-                    @if ($order->status === 'Diproses')
-                        <div class="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
-                            Paket kamu sedang diproses oleh admin.
-                        </div>
-                    @endif
-
-                    @if ($order->status === 'Pembayaran Gagal')
-                        <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-                            Paket atau pembayaran ini dibatalkan. Jika perlu, kamu bisa buat pesanan baru.
-                        </div>
-                    @endif
-
-                    @if ($order->status === 'Dikirim' && $order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at) && ! $order->received_at)
-                        <form action="{{ route('orders.confirm-received', $order) }}" method="POST" class="mt-3">
-                            @csrf
-                            <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white">Konfirmasi Pesanan Diterima</button>
-                        </form>
-                    @endif
-
-                    @if ($order->status === 'Dikirim' && $order->estimated_delivery_at && now()->lessThan($order->estimated_delivery_at))
-                        <p class="mt-3 text-sm text-amber-700">Konfirmasi baru bisa dilakukan setelah estimasi 2 hari tercapai.</p>
-                    @endif
-
-                    @if ($order->status === 'Selesai' && $order->received_at)
-                        <p class="mt-3 text-sm font-semibold text-emerald-700">Pesanan sudah selesai pada {{ $order->received_at->format('d M Y, H:i') }}.</p>
-                    @endif
-
-                    @if ($order->status !== 'Selesai' && $order->payment_method !== 'COD' && in_array($order->midtrans_transaction_status, ['pending', 'deny', 'cancel', 'expire'], true))
-                        <form action="{{ route('orders.pay', $order) }}" method="POST" class="mt-3">
-                            @csrf
-                            <button type="submit" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Bayar Ulang</button>
-                        </form>
-                    @endif
-
-                    <div class="mt-3">
-                        <a href="{{ route('orders.invoice.download', $order) }}" class="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                            Download Invoice
-                        </a>
-                    </div>
-
-                    <div class="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                        @foreach ($order->items as $item)
-                            <div class="flex items-center justify-between text-sm text-slate-700">
-                                <span>{{ $item->book->title }} x {{ $item->quantity }}</span>
-                                <span>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                <details class="group order-detail rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <summary class="list-none cursor-pointer p-5 [&::-webkit-details-marker]:hidden">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900">{{ $order->order_code }}</h2>
+                                <p class="mt-1 text-xs text-slate-500">Order Date: {{ $order->created_at->format('d M Y, H:i') }}</p>
                             </div>
-                        @endforeach
+                            <div class="flex items-center gap-2">
+                                <span class="w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $statusClasses[$order->status] ?? 'bg-slate-100 text-slate-700' }}">{{ $statusLabels[$order->status] ?? $order->status }}</span>
+                                <span class="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition group-hover:bg-slate-50">
+                                    View Order
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+                                    </svg>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                <span>Produk Dibeli</span>
+                                <span>{{ $paymentMethodLabel }}</span>
+                            </div>
+
+                            <div class="space-y-2">
+                                @foreach ($groupedItems as $groupedItem)
+                                    <div class="flex items-start gap-3 rounded-lg bg-white p-2.5">
+                                        <img src="{{ $groupedItem['image'] }}" alt="{{ $groupedItem['title'] }}" class="h-12 w-12 rounded-md object-cover">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $groupedItem['title'] }}</p>
+                                            <p class="text-xs text-slate-500">x{{ $groupedItem['quantity'] }}</p>
+                                        </div>
+                                        <p class="text-sm font-semibold text-slate-800">Rp {{ number_format($groupedItem['subtotal'], 0, ',', '.') }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-sm">
+                                <span class="font-semibold text-slate-600">Total Belanja</span>
+                                <span class="text-lg font-extrabold text-slate-900">Rp {{ number_format($order->total_price, 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    </summary>
+
+                    <div class="order-detail-content border-t border-slate-100 p-5">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-800">Progress Pesanan</p>
+                            <div class="relative mt-3">
+                                <div class="h-1 rounded-full bg-slate-200"></div>
+                                <div class="absolute left-0 top-0 h-1 rounded-full bg-emerald-500 transition-all duration-300 {{ $progressWidthClass }}"></div>
+                            </div>
+                            <div class="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                                @foreach (['Order Dibuat', 'Diproses', 'Dikirim', 'Selesai'] as $index => $stepLabel)
+                                    @php $stepNumber = $index + 1; @endphp
+                                    <div>
+                                        <span class="mx-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold {{ $currentStep >= $stepNumber ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500 border border-slate-300' }}">{{ $stepNumber }}</span>
+                                        <p class="mt-1 {{ $currentStep >= $stepNumber ? 'font-semibold text-slate-900' : 'text-slate-500' }}">{{ $stepLabel }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="text-sm font-semibold text-slate-800">Daftar Barang</p>
+                                <div class="mt-3 space-y-3">
+                                    @foreach ($groupedItems as $groupedItem)
+                                        <div class="flex items-start gap-3 rounded-lg border border-slate-100 p-3">
+                                            <div class="min-w-0 flex-1">
+                                                <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $groupedItem['title'] }}</p>
+                                                <p class="text-xs text-slate-500">Qty: {{ $groupedItem['quantity'] }}</p>
+                                            </div>
+                                            <p class="text-sm font-semibold text-slate-800">Rp {{ number_format($groupedItem['subtotal'], 0, ',', '.') }}</p>
+                                        </div>
+                                    @endforeach
+
+                                    <div class="flex items-center justify-between border-t border-slate-200 pt-3 text-sm">
+                                        <span class="font-semibold text-slate-600">Total</span>
+                                        <span class="text-lg font-extrabold text-slate-900">Rp {{ number_format($order->total_price, 0, ',', '.') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                    <p class="text-sm font-semibold text-slate-800">Order Summary</p>
+                                    <div class="mt-3 space-y-2 text-sm">
+                                        <div class="flex items-center justify-between text-slate-600">
+                                            <span>Subtotal</span>
+                                            <span>Rp {{ number_format($order->total_price, 0, ',', '.') }}</span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-slate-600">
+                                            <span>Total</span>
+                                            <span class="font-bold text-slate-900">Rp {{ number_format($order->total_price, 0, ',', '.') }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                                    <p><span class="font-semibold text-slate-800">Metode Bayar:</span> {{ $paymentMethodLabel }}</p>
+                                    <p><span class="font-semibold text-slate-800">Alamat:</span> {{ $order->shipping_address }}</p>
+                                    <p class="mt-1"><span class="font-semibold text-slate-800">No. Telp:</span> {{ $order->phone }}</p>
+                                    @if ($order->midtrans_transaction_status)
+                                        <p class="mt-2">
+                                            <span class="font-semibold text-slate-800">Status Payment:</span>
+                                            <span class="ml-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $paymentStatusClasses[$order->midtrans_transaction_status] ?? 'bg-slate-100 text-slate-700' }}">{{ $order->midtrans_transaction_status }}</span>
+                                        </p>
+                                    @endif
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{{ route('orders.invoice.download', $order) }}" class="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Download Invoice</a>
+
+                                    @if ($order->status !== 'Selesai' && $order->payment_method !== 'COD' && in_array($order->midtrans_transaction_status, ['pending', 'deny', 'cancel', 'expire'], true))
+                                        <form action="{{ route('orders.pay', $order) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Bayar Ulang</button>
+                                        </form>
+                                    @endif
+
+                                    @if ($order->status === 'Dikirim' && $order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at) && ! $order->received_at)
+                                        <form action="{{ route('orders.confirm-received', $order) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white">Konfirmasi Diterima</button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                @if ($order->status === 'Dikirim' && $order->estimated_delivery_at && now()->lessThan($order->estimated_delivery_at))
+                                    <p class="text-sm text-amber-700">Konfirmasi baru bisa dilakukan setelah estimasi 2 hari tercapai.</p>
+                                @endif
+
+                                @if ($order->status === 'Selesai' && $order->received_at)
+                                    <p class="text-sm font-semibold text-emerald-700">Pesanan selesai pada {{ $order->received_at->format('d M Y, H:i') }}.</p>
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                </article>
+                </details>
             @empty
                 <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
                     Belum ada pesanan yang dibuat.
@@ -163,4 +266,34 @@
 
         <div class="mt-6">{{ $orders->links() }}</div>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var orderDetails = document.querySelectorAll('.order-detail');
+
+            orderDetails.forEach(function (detail) {
+                detail.addEventListener('toggle', function () {
+                    if (!detail.open) {
+                        return;
+                    }
+
+                    var detailContent = detail.querySelector('.order-detail-content');
+
+                    if (!detailContent) {
+                        return;
+                    }
+
+                    var nav = document.querySelector('nav.sticky');
+                    var navHeight = nav ? nav.offsetHeight : 0;
+                    var extraOffset = 16;
+                    var targetY = window.scrollY + detailContent.getBoundingClientRect().top - navHeight - extraOffset;
+
+                    window.scrollTo({
+                        top: Math.max(targetY, 0),
+                        behavior: 'smooth',
+                    });
+                });
+            });
+        });
+    </script>
 @endsection

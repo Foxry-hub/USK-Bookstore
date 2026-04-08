@@ -101,7 +101,7 @@ class CheckoutController extends Controller
         $request->session()->forget('cart');
 
         if ($paymentMethod === 'MIDTRANS') {
-            return redirect()->away($midtransRedirectUrl)->with('success', 'Pesanan dibuat. Lanjutkan pembayaran di Midtrans ya.');
+            return redirect()->away($midtransRedirectUrl)->with('success', 'Pesanan berhasil dibuat.');
         }
 
         return redirect()->route('orders.index')->with('success', 'Checkout COD berhasil, pesanan kamu sudah kami catat.');
@@ -291,14 +291,12 @@ class CheckoutController extends Controller
 
         $order->loadMissing(['user', 'items.book']);
 
-        $itemsTotal = (float) $order->items->sum('subtotal');
         $grandTotal = (float) $order->total_price;
 
         $pdf = Pdf::loadView('orders.invoice', [
             'order' => $order,
             'invoiceNumber' => $this->generateInvoiceNumber($order),
             'invoiceDate' => $order->created_at,
-            'itemsTotal' => $itemsTotal,
             'grandTotal' => $grandTotal,
         ])->setPaper('a5', 'portrait');
 

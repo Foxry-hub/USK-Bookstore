@@ -291,10 +291,6 @@
             </table>
 
             <table class="summary">
-                <tr>
-                    <td class="summary-label">Total Item</td>
-                    <td class="summary-value">Rp {{ number_format($itemsTotal, 0, ',', '.') }}</td>
-                </tr>
                 <tr class="grand-total">
                     <td class="summary-label">Total Harga</td>
                     <td class="summary-value">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
