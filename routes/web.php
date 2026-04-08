@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/orders/{order}/invoice', [CheckoutController::class, 'downloadInvoice'])->name('orders.invoice.download');
     Route::post('/orders/{order}/pay', [CheckoutController::class, 'pay'])->name('orders.pay');
     Route::post('/orders/{order}/confirm-received', [CheckoutController::class, 'confirmReceived'])->name('orders.confirm-received');
+    Route::post('/orders/{order}/confirm-not-received', [CheckoutController::class, 'confirmNotReceived'])->name('orders.confirm-not-received');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });

@@ -174,10 +174,9 @@
                                                 <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
                                                     <p class="text-sm font-semibold text-slate-900">{{ $notificationOrder->order_code }}</p>
                                                     <p class="mt-1 text-xs text-slate-600">Paket COD sudah sampai estimasi. Konfirmasi diterima dan dibayar.</p>
-                                                    <form action="{{ route('orders.confirm-received', $notificationOrder) }}" method="POST" class="mt-2">
-                                                        @csrf
-                                                        <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">Konfirmasi Diterima dan Dibayar</button>
-                                                    </form>
+                                                    <a href="{{ route('orders.index', ['status' => 'dikirim', 'open_order' => $notificationOrder->id, 'focus_order' => $notificationOrder->id]) }}" class="mt-2 inline-flex rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
+                                                        Buka Paket Ini
+                                                    </a>
                                                 </div>
                                             @endforeach
                                         </div>

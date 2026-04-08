@@ -283,6 +283,32 @@ class CheckoutController extends Controller
         return back()->with('success', 'Terima kasih, pesanan sudah ditandai selesai.');
     }
 
+    public function confirmNotReceived(Request $request, Order $order): RedirectResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($order->payment_method !== 'COD') {
+            return back()->with('error', 'Fitur ini khusus untuk pesanan COD.');
+        }
+
+        if ($order->status !== 'Dikirim') {
+            return back()->with('error', 'Pesanan belum bisa dikonfirmasi.');
+        }
+
+        if ($order->estimated_delivery_at === null || now()->lt($order->estimated_delivery_at)) {
+            return back()->with('error', 'Pesanan belum masuk estimasi sampai.');
+        }
+
+        $order->update([
+            'status' => 'Pembayaran Gagal',
+            'received_at' => now(),
+        ]);
+
+        return back()->with('success', 'Laporan tidak diterima sudah kami catat. Tim kami akan menindaklanjuti.');
+    }
+
     public function downloadInvoice(Request $request, Order $order)
     {
         if ($order->user_id !== $request->user()->id) {

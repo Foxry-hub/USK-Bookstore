@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <section>
+    <section data-focus-order="{{ (string) request('focus_order', '') }}">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-slate-900">Keterangan Paket</h1>
@@ -86,7 +86,7 @@
                         'Diproses' => 2,
                         'Dikirim' => 3,
                         'Selesai' => 4,
-                        'Pembayaran Gagal' => 1,
+                        'Pembayaran Gagal' => 4,
                         'Refund' => 4,
                     ];
 
@@ -97,6 +97,8 @@
                         3 => 'w-[62.5%]',
                         default => 'w-[87.5%]',
                     };
+                    $finalStepLabel = $order->status === 'Pembayaran Gagal' ? 'Dibatalkan' : 'Selesai';
+                    $progressStepLabels = ['Order Dibuat', 'Diproses', 'Dikirim', $finalStepLabel];
                     $paymentMethodLabel = match (strtoupper((string) $order->payment_method)) {
                         'MIDTRANS' => 'Credit Card / Debit',
                         'COD' => 'COD',
@@ -118,7 +120,12 @@
                         })
                         ->values();
                 @endphp
-                <details class="group order-detail rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <details
+                    class="group order-detail rounded-2xl border border-slate-200 bg-white shadow-sm {{ (string) request('focus_order') === (string) $order->id ? 'ring-2 ring-emerald-200' : '' }}"
+                    id="order-{{ $order->id }}"
+                    data-order-id="{{ $order->id }}"
+                    @if ((string) request('open_order') === (string) $order->id) open @endif
+                >
                     <summary class="list-none cursor-pointer p-5 [&::-webkit-details-marker]:hidden">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
@@ -170,7 +177,7 @@
                                 <div class="absolute left-0 top-0 h-1 rounded-full bg-emerald-500 transition-all duration-300 {{ $progressWidthClass }}"></div>
                             </div>
                             <div class="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
-                                @foreach (['Order Dibuat', 'Diproses', 'Dikirim', 'Selesai'] as $index => $stepLabel)
+                                @foreach ($progressStepLabels as $index => $stepLabel)
                                     @php $stepNumber = $index + 1; @endphp
                                     <div>
                                         <span class="mx-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold {{ $currentStep >= $stepNumber ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500 border border-slate-300' }}">{{ $stepNumber }}</span>
@@ -238,7 +245,19 @@
                                         </form>
                                     @endif
 
-                                    @if ($order->status === 'Dikirim' && $order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at) && ! $order->received_at)
+                                    @if ($order->payment_method === 'COD' && $order->status === 'Dikirim' && $order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at) && ! $order->received_at)
+                                        <form action="{{ route('orders.confirm-received', $order) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white">Diterima</button>
+                                        </form>
+
+                                        <form action="{{ route('orders.confirm-not-received', $order) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white">Tidak Diterima</button>
+                                        </form>
+                                    @endif
+
+                                    @if ($order->payment_method !== 'COD' && $order->status === 'Dikirim' && $order->estimated_delivery_at && now()->greaterThanOrEqualTo($order->estimated_delivery_at) && ! $order->received_at)
                                         <form action="{{ route('orders.confirm-received', $order) }}" method="POST">
                                             @csrf
                                             <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white">Konfirmasi Diterima</button>
@@ -270,6 +289,24 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var orderDetails = document.querySelectorAll('.order-detail');
+            var ordersSection = document.querySelector('section[data-focus-order]');
+            var focusedOrderId = ordersSection ? (ordersSection.getAttribute('data-focus-order') || '') : '';
+
+            if (focusedOrderId !== '') {
+                var focusedOrder = document.querySelector('[data-order-id="' + focusedOrderId + '"]');
+
+                if (focusedOrder) {
+                    var nav = document.querySelector('nav.sticky');
+                    var navHeight = nav ? nav.offsetHeight : 0;
+                    var focusOffset = 12;
+                    var targetY = window.scrollY + focusedOrder.getBoundingClientRect().top - navHeight - focusOffset;
+
+                    window.scrollTo({
+                        top: Math.max(targetY, 0),
+                        behavior: 'smooth',
+                    });
+                }
+            }
 
             orderDetails.forEach(function (detail) {
                 detail.addEventListener('toggle', function () {

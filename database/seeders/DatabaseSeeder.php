@@ -198,6 +198,8 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call(OrderDemoSeeder::class);
     }
 
     private function buildBookNarrative(string $title, string $author, string $categorySlug): array
