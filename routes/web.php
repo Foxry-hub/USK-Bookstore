@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
     Route::get('/orders', [CheckoutController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{order}/invoice', [CheckoutController::class, 'downloadInvoice'])->name('orders.invoice.download');
     Route::post('/orders/{order}/pay', [CheckoutController::class, 'pay'])->name('orders.pay');
     Route::post('/orders/{order}/confirm-received', [CheckoutController::class, 'confirmReceived'])->name('orders.confirm-received');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

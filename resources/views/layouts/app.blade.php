@@ -92,7 +92,12 @@
     <div class="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(37,99,235,0.10),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.10),_transparent_45%)]">
         <nav class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur">
             <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                <a href="{{ route('store.index') }}" class="text-lg font-extrabold tracking-tight text-slate-900">BookStore</a>
+                <a href="{{ route('store.index') }}" class="inline-flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-900">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white">
+                        <img src="{{ asset('assets/logo.png') }}" alt="Logo BookStore" class="h-5 w-5 object-contain">
+                    </span>
+                    <span>BookStore</span>
+                </a>
                 <div class="flex items-center gap-2 sm:gap-4">
                     @if (!auth()->check())
                         <a href="{{ route('store.index') }}#about" class="hidden text-sm font-medium text-slate-600 hover:text-slate-900 sm:inline">About Us</a>

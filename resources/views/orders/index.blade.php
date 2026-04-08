@@ -139,6 +139,12 @@
                         </form>
                     @endif
 
+                    <div class="mt-3">
+                        <a href="{{ route('orders.invoice.download', $order) }}" class="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                            Download Invoice
+                        </a>
+                    </div>
+
                     <div class="mt-4 space-y-2 border-t border-slate-100 pt-4">
                         @foreach ($order->items as $item)
                             <div class="flex items-center justify-between text-sm text-slate-700">

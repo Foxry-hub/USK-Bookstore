@@ -214,7 +214,12 @@
     <footer class="mt-10 rounded-[2rem] border border-slate-200 bg-white px-6 py-6 shadow-sm sm:px-8">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-lg font-extrabold text-slate-900">BookStore</p>
+                <p class="inline-flex items-center gap-2 text-lg font-extrabold text-slate-900">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white">
+                        <img src="{{ asset('assets/logo.png') }}" alt="Logo BookStore" class="h-4 w-4 object-contain">
+                    </span>
+                    <span>BookStore</span>
+                </p>
                 <p class="text-sm text-slate-600">Belanja buku modern, cepat, dan nyaman.</p>
             </div>
             <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600">

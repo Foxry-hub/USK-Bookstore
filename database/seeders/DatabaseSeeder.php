@@ -14,9 +14,6 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * @var array<int, string>
-     */
     private array $bookImagePool = [
         'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=900&q=80',
         'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&w=900&q=80',
@@ -32,9 +29,7 @@ class DatabaseSeeder extends Seeder
         'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=900&q=80',
     ];
 
-    /**
-     * Seed the application's database.
-     */
+    
     public function run(): void
     {
         $adminEmail = env('ADMIN_EMAIL', 'admin@bookstore.test');
@@ -205,9 +200,6 @@ class DatabaseSeeder extends Seeder
         }
     }
 
-    /**
-     * @return array{description: string, detail: string}
-     */
     private function buildBookNarrative(string $title, string $author, string $categorySlug): array
     {
         $templates = [
@@ -235,10 +227,6 @@ class DatabaseSeeder extends Seeder
         ];
     }
 
-    /**
-     * @param array<int, string>|null $additionalImages
-     * @return array{image_url: string, image_urls: array<int, string>}
-     */
     private function buildBookImages(?string $primaryImage, ?array $additionalImages = null): array
     {
         $images = $this->bookImagePool;

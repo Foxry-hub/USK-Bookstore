@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -282,6 +283,28 @@ class CheckoutController extends Controller
         return back()->with('success', 'Terima kasih, pesanan sudah ditandai selesai.');
     }
 
+    public function downloadInvoice(Request $request, Order $order)
+    {
+        if ($order->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $order->loadMissing(['user', 'items.book']);
+
+        $itemsTotal = (float) $order->items->sum('subtotal');
+        $grandTotal = (float) $order->total_price;
+
+        $pdf = Pdf::loadView('orders.invoice', [
+            'order' => $order,
+            'invoiceNumber' => $this->generateInvoiceNumber($order),
+            'invoiceDate' => $order->created_at,
+            'itemsTotal' => $itemsTotal,
+            'grandTotal' => $grandTotal,
+        ])->setPaper('a5', 'portrait');
+
+        return $pdf->download('invoice-' . $order->order_code . '.pdf');
+    }
+
     private function syncOrderFromGatewayRedirect(Request $request): void
     {
         $midtransOrderId = (string) $request->query('order_id', '');
@@ -475,5 +498,10 @@ class CheckoutController extends Controller
             'refund', 'partial_refund' => 'Refund',
             default => $order->status,
         };
+    }
+
+    private function generateInvoiceNumber(Order $order): string
+    {
+        return 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
     }
 }
