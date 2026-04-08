@@ -11,6 +11,14 @@ use Illuminate\View\View;
 
 class OrderController extends Controller
 {
+    private const ORDER_STATUS_PROCESSED = 'Diproses';
+
+    private const ORDER_STATUS_SHIPPED = 'Dikirim';
+
+    private const ORDER_STATUS_DONE = 'Selesai';
+
+    private const PAYMENT_COD = 'COD';
+
     public function index(Request $request): View
     {
         $this->autoFinalizeDueOrders();
@@ -19,11 +27,7 @@ class OrderController extends Controller
         $ordersQuery = Order::with(['user', 'items.book'])->latest();
 
         if ($paymentStatus !== 'all') {
-            if ($paymentStatus === 'cod') {
-                $ordersQuery->where('payment_method', 'COD');
-            } else {
-                $ordersQuery->where('midtrans_transaction_status', $paymentStatus);
-            }
+            $ordersQuery = $this->filterOrdersByPaymentStatus($ordersQuery, $paymentStatus);
         }
 
         return view('admin.orders.index', [
@@ -34,7 +38,8 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
-        if ($order->status === 'Selesai') {
+        // Order yang udah selesai jangan dirubah statusnya, tuh udah final.
+        if ($order->status === self::ORDER_STATUS_DONE) {
             return back()->with('error', 'Pesanan sudah selesai dan tidak bisa diubah lagi.');
         }
 
@@ -42,38 +47,55 @@ class OrderController extends Controller
             'status' => ['required', 'in:Diproses,Dikirim,Selesai'],
         ]);
 
-        $updateData = [
-            'status' => $validated['status'],
-        ];
-
-        if ($validated['status'] === 'Diproses') {
-            $updateData['shipped_at'] = null;
-            $updateData['estimated_delivery_at'] = null;
-        }
-
-        if ($validated['status'] === 'Dikirim') {
-            $updateData['shipped_at'] = $order->shipped_at ?? now();
-            $updateData['estimated_delivery_at'] = $order->estimated_delivery_at ?? now()->addDays(2);
-        }
-
-        if ($validated['status'] === 'Selesai') {
-            $updateData['received_at'] = $order->received_at ?? now();
-        }
-
+        $updateData = $this->buildStatusUpdateData($order, $validated['status']);
         $order->update($updateData);
 
         return back()->with('success', 'Status pesanan berhasil diupdate.');
     }
 
+    private function filterOrdersByPaymentStatus($query, string $paymentStatus)
+    {
+        if ($paymentStatus === 'cod') {
+            return $query->where('payment_method', self::PAYMENT_COD);
+        }
+
+        return $query->where('midtrans_transaction_status', $paymentStatus);
+    }
+
+    private function buildStatusUpdateData(Order $order, string $newStatus): array
+    {
+        $data = ['status' => $newStatus];
+
+        if ($newStatus === self::ORDER_STATUS_PROCESSED) {
+            // Pas balik ke diproses, hapus tanggal kirim biar nanti bisa di-setup lagi.
+            $data['shipped_at'] = null;
+            $data['estimated_delivery_at'] = null;
+        }
+
+        if ($newStatus === self::ORDER_STATUS_SHIPPED) {
+            // Set tanggal kirim dan estimasi diterima (default 2 hari ketika dikasih status dikirim).
+            $data['shipped_at'] = $order->shipped_at ?? now();
+            $data['estimated_delivery_at'] = $order->estimated_delivery_at ?? now()->addDays(2);
+        }
+
+        if ($newStatus === self::ORDER_STATUS_DONE) {
+            // Tandai sebagai diterima waktu selesai.
+            $data['received_at'] = $order->received_at ?? now();
+        }
+
+        return $data;
+    }
+
     private function autoFinalizeDueOrders(): void
     {
+        // Auto finalkan order di-kirim yang udah melewati estimasi sampai tapi belum dikonfirmasi user.
         Order::query()
-            ->where('status', 'Dikirim')
-            ->where('payment_method', '!=', 'COD')
+            ->where('status', self::ORDER_STATUS_SHIPPED)
+            ->where('payment_method', '!=', self::PAYMENT_COD)
             ->whereNotNull('estimated_delivery_at')
             ->where('estimated_delivery_at', '<=', now())
             ->update([
-                'status' => 'Selesai',
+                'status' => self::ORDER_STATUS_DONE,
                 'received_at' => DB::raw('COALESCE(received_at, CURRENT_TIMESTAMP)'),
             ]);
     }

@@ -17,15 +17,21 @@ class ContactMessageController extends Controller
 
     public function show(ContactMessage $message): View
     {
-        if (! $message->is_read) {
+        // Pas admin buka pesan, langsung tandain sebagai sudah dibaca.
+        $this->markMessageAsRead($message);
+
+        return view('admin.messages.show', [
+            'message' => $message->load('user'),
+        ]);
+    }
+
+    private function markMessageAsRead(ContactMessage $message): void
+    {
+        if (!$message->is_read) {
             $message->forceFill([
                 'is_read' => true,
                 'read_at' => now(),
             ])->save();
         }
-
-        return view('admin.messages.show', [
-            'message' => $message->load('user'),
-        ]);
     }
 }

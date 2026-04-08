@@ -10,34 +10,39 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CartController extends Controller
 {
+    private const CART_SESSION_KEY = 'cart';
+
     private function cartPayload(array $cart, array $extra = []): array
     {
-        $items = collect($cart)->values()->map(function (array $item): array {
-            $item['subtotal'] = $item['price'] * $item['quantity'];
+        $items = collect($cart)
+            ->values()
+            ->map(function (array $item): array {
+                $item['subtotal'] = $item['price'] * $item['quantity'];
 
-            return $item;
-        })->all();
+                return $item;
+            })
+            ->all();
 
         return array_merge([
             'items' => $items,
-            'total' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
-            'cart_count' => collect($cart)->sum('quantity'),
+            'total' => $this->calculateCartTotal($cart),
+            'cart_count' => $this->calculateCartCount($cart),
         ], $extra);
     }
 
     public function index(Request $request): View
     {
-        $cart = $request->session()->get('cart', []);
+        $cart = $this->getCart($request);
 
         return view('cart.index', [
             'cart' => $cart,
-            'total' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
+            'total' => $this->calculateCartTotal($cart),
         ]);
     }
 
     public function add(Request $request, Book $book): RedirectResponse|Response
     {
-        $cart = $request->session()->get('cart', []);
+        $cart = $this->getCart($request);
 
         if (isset($cart[$book->id])) {
             $cart[$book->id]['quantity']++;
@@ -51,7 +56,7 @@ class CartController extends Controller
             ];
         }
 
-        $request->session()->put('cart', $cart);
+        $this->saveCart($request, $cart);
 
         if ($request->expectsJson()) {
             return response()->json($this->cartPayload($cart, [
@@ -69,13 +74,13 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'max:99'],
         ]);
 
-        $cart = $request->session()->get('cart', []);
+        $cart = $this->getCart($request);
         $removed = false;
 
         if (isset($cart[$bookId])) {
             if ($validated['quantity'] <= 0) {
                 unset($cart[$bookId]);
-                $request->session()->put('cart', $cart);
+                $this->saveCart($request, $cart);
                 $removed = true;
 
                 if ($request->expectsJson()) {
@@ -89,7 +94,7 @@ class CartController extends Controller
             }
 
             $cart[$bookId]['quantity'] = $validated['quantity'];
-            $request->session()->put('cart', $cart);
+            $this->saveCart($request, $cart);
         }
 
         if ($request->expectsJson()) {
@@ -105,9 +110,9 @@ class CartController extends Controller
 
     public function remove(Request $request, int $bookId): RedirectResponse|Response
     {
-        $cart = $request->session()->get('cart', []);
+        $cart = $this->getCart($request);
         unset($cart[$bookId]);
-        $request->session()->put('cart', $cart);
+        $this->saveCart($request, $cart);
 
         if ($request->expectsJson()) {
             return response()->json($this->cartPayload($cart, [
@@ -117,5 +122,25 @@ class CartController extends Controller
         }
 
         return back()->with('success', 'Item di keranjang berhasil dihapus.');
+    }
+
+    private function getCart(Request $request): array
+    {
+        return $request->session()->get(self::CART_SESSION_KEY, []);
+    }
+
+    private function saveCart(Request $request, array $cart): void
+    {
+        $request->session()->put(self::CART_SESSION_KEY, $cart);
+    }
+
+    private function calculateCartTotal(array $cart): float
+    {
+        return (float) collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
+    }
+
+    private function calculateCartCount(array $cart): int
+    {
+        return (int) collect($cart)->sum('quantity');
     }
 }

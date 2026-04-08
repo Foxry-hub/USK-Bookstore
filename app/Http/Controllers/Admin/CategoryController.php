@@ -11,6 +11,7 @@ use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
+    // Validasi name biar konsisten di store dan update, jadi nggak perlu repeat rules.
     public function index(): View
     {
         return view('admin.categories.index', [
@@ -25,14 +26,9 @@ class CategoryController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120', 'unique:categories,name'],
-        ]);
+        $validated = $this->validateCategoryName($request);
 
-        Category::create([
-            'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']),
-        ]);
+        $this->createCategoryWithSlug($validated['name']);
 
         return redirect()->route('admin.categories.index')->with('success', 'Kategori baru berhasil ditambahkan.');
     }
@@ -44,14 +40,9 @@ class CategoryController extends Controller
 
     public function update(Request $request, Category $category): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120', 'unique:categories,name,' . $category->id],
-        ]);
+        $validated = $this->validateCategoryName($request, $category->id);
 
-        $category->update([
-            'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']),
-        ]);
+        $category->update($this->prepareCategoryUpdateData($validated['name']));
 
         return redirect()->route('admin.categories.index')->with('success', 'Kategori berhasil diperbarui.');
     }
@@ -61,5 +52,35 @@ class CategoryController extends Controller
         $category->delete();
 
         return redirect()->route('admin.categories.index')->with('success', 'Kategori berhasil dihapus.');
+    }
+
+    private function validateCategoryName(Request $request, ?int $exceptId = null): array
+    {
+        $rules = [
+            'name' => ['required', 'string', 'max:120', 'unique:categories,name'],
+        ];
+
+        // Pas update, exclude slug category yang lagi diedit dari unique check.
+        if ($exceptId !== null) {
+            $rules['name'][4] = "unique:categories,name,{$exceptId}";
+        }
+
+        return $request->validate($rules);
+    }
+
+    private function prepareCategoryUpdateData(string $name): array
+    {
+        return [
+            'name' => $name,
+            'slug' => Str::slug($name),
+        ];
+    }
+
+    private function createCategoryWithSlug(string $name): Category
+    {
+        return Category::create([
+            'name' => $name,
+            'slug' => Str::slug($name),
+        ]);
     }
 }

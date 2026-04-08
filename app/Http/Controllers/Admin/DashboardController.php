@@ -14,11 +14,18 @@ class DashboardController extends Controller
     public function index(): View
     {
         return view('admin.dashboard', [
+            'stats' => $this->buildDashboardStats(),
+            'recentOrders' => Order::with('user')->latest()->take(5)->get(),
+        ]);
+    }
+
+    private function buildDashboardStats(): array
+    {
+        return [
             'totalCategories' => Category::count(),
             'totalBooks' => Book::count(),
             'totalUsers' => User::count(),
             'totalOrders' => Order::count(),
-            'recentOrders' => Order::with('user')->latest()->take(5)->get(),
-        ]);
+        ];
     }
 }

@@ -7,11 +7,11 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Midtrans\Config as MidtransConfig;
@@ -19,57 +19,59 @@ use Midtrans\Snap;
 
 class CheckoutController extends Controller
 {
+    private const CART_SESSION_KEY = 'cart';
+
+    private const PAYMENT_COD = 'COD';
+
+    private const PAYMENT_MIDTRANS = 'MIDTRANS';
+
+    private const ORDER_STATUS_WAITING_CONFIRMATION = 'Menunggu Konfirmasi';
+
+    private const ORDER_STATUS_WAITING_VERIFICATION = 'Menunggu Verifikasi';
+
+    private const ORDER_STATUS_WAITING_PAYMENT = 'Menunggu Pembayaran';
+
+    private const ORDER_STATUS_PAID = 'Dibayar';
+
+    private const ORDER_STATUS_PROCESSED = 'Diproses';
+
+    private const ORDER_STATUS_SHIPPED = 'Dikirim';
+
+    private const ORDER_STATUS_DONE = 'Selesai';
+
+    private const ORDER_STATUS_FAILED = 'Pembayaran Gagal';
+
+    private const ORDER_STATUS_REFUND = 'Refund';
+
+    private const FINALIZED_ORDER_STATUSES = [
+        self::ORDER_STATUS_PROCESSED,
+        self::ORDER_STATUS_SHIPPED,
+        self::ORDER_STATUS_DONE,
+    ];
+
+    private const RETRYABLE_MIDTRANS_STATUSES = ['pending', 'deny', 'cancel', 'expire'];
+
+    private const RETRYABLE_ORDER_STATUSES = [
+        self::ORDER_STATUS_WAITING_PAYMENT,
+        self::ORDER_STATUS_FAILED,
+    ];
+
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'phone' => ['required', 'string', 'max:20'],
-            'shipping_address' => ['required', 'string', 'max:500'],
-            'note' => ['nullable', 'string', 'max:500'],
-            'payment_method' => ['required', 'in:COD,MIDTRANS'],
-            'payment_detail' => ['required', 'in:card,cod'],
-        ]);
-
-        $cart = $request->session()->get('cart', []);
+        $validated = $this->validateCheckoutPayload($request);
+        $cart = $request->session()->get(self::CART_SESSION_KEY, []);
 
         if (empty($cart)) {
             return back()->with('error', 'Keranjang masih kosong, isi dulu ya.');
         }
 
-        $paymentMethod = $validated['payment_method'];
-        $paymentDetail = $validated['payment_detail'];
+        $paymentMethod = (string) $validated['payment_method'];
+        $paymentDetail = (string) $validated['payment_detail'];
 
-        $order = DB::transaction(function () use ($request, $validated, $cart, $paymentMethod, $paymentDetail): Order {
-            $total = collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']);
+        $order = $this->createOrderFromCart($request, $validated, $cart);
+        $midtransRedirectUrl = null;
 
-            $order = Order::create([
-                'user_id' => $request->user()->id,
-                'order_code' => 'ORD-' . now()->format('YmdHis') . '-' . random_int(100, 999),
-                'total_price' => $total,
-                'payment_method' => $paymentMethod,
-                'midtrans_payment_type' => $paymentMethod === 'MIDTRANS' ? $paymentDetail : null,
-                'status' => 'Menunggu Konfirmasi',
-                'phone' => $validated['phone'],
-                'shipping_address' => $validated['shipping_address'],
-                'note' => $validated['note'] ?? null,
-            ]);
-
-            foreach ($cart as $item) {
-                $book = Book::findOrFail($item['book_id']);
-                $subtotal = $item['quantity'] * $item['price'];
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'book_id' => $book->id,
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'subtotal' => $subtotal,
-                ]);
-            }
-
-            return $order;
-        });
-
-        if ($paymentMethod === 'MIDTRANS') {
+        if ($paymentMethod === self::PAYMENT_MIDTRANS) {
             try {
                 $midtransRedirectUrl = $this->createMidtransTransaction(
                     $order,
@@ -98,9 +100,9 @@ class CheckoutController extends Controller
             }
         }
 
-        $request->session()->forget('cart');
+        $request->session()->forget(self::CART_SESSION_KEY);
 
-        if ($paymentMethod === 'MIDTRANS') {
+        if ($midtransRedirectUrl !== null) {
             return redirect()->away($midtransRedirectUrl)->with('success', 'Pesanan berhasil dibuat.');
         }
 
@@ -109,17 +111,13 @@ class CheckoutController extends Controller
 
     public function pay(Request $request, Order $order): RedirectResponse
     {
-        if ($order->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->abortIfNotOrderOwner($request, $order);
 
-        if ($order->payment_method === 'COD') {
+        if ($order->payment_method === self::PAYMENT_COD) {
             return back()->with('error', 'Order COD tidak perlu pembayaran online.');
         }
 
-        if (! in_array($order->midtrans_transaction_status, ['pending', 'deny', 'cancel', 'expire'], true)
-            && ! in_array($order->status, ['Menunggu Pembayaran', 'Pembayaran Gagal'], true)
-        ) {
+        if (! $this->canRetryMidtransPayment($order)) {
             return back()->with('error', 'Order ini tidak bisa dibayar ulang karena statusnya sudah berubah.');
         }
 
@@ -196,43 +194,25 @@ class CheckoutController extends Controller
 
         $transactionStatus = (string) ($payload['transaction_status'] ?? '');
         $fraudStatus = (string) ($payload['fraud_status'] ?? '');
-        $paymentType = (string) ($payload['payment_type'] ?? 'MIDTRANS');
+        $paymentType = (string) ($payload['payment_type'] ?? self::PAYMENT_MIDTRANS);
 
-        $nextStatus = $this->resolveOrderStatusFromPaymentStatus($order, $transactionStatus, $fraudStatus);
-
-        $order->update([
-            'status' => $nextStatus,
-            'payment_method' => strtoupper($paymentType),
-            'midtrans_order_id' => $midtransOrderId,
-            'midtrans_transaction_status' => $transactionStatus,
-            'midtrans_payment_type' => $paymentType,
-            'midtrans_fraud_status' => $fraudStatus ?: null,
-            'paid_at' => in_array($transactionStatus, ['settlement', 'capture'], true)
-                ? ($order->paid_at ?? now())
-                : $order->paid_at,
-        ]);
+        $this->syncPaymentResultToOrder($order, (string) $midtransOrderId, $transactionStatus, $fraudStatus, $paymentType);
 
         return response()->json(['message' => 'OK']);
     }
 
     public function index(Request $request): View
     {
-        $this->autoFinalizeDueOrders($request->user()->id);
+        $userId = (int) $request->user()->id;
+
+        $this->autoFinalizeDueOrders($userId);
         $this->syncOrderFromGatewayRedirect($request);
 
         $activePackageStatus = (string) $request->query('status', 'all');
-        $statusFilters = [
-            'all' => null,
-            'menunggu_konfirmasi' => ['Menunggu Konfirmasi', 'Menunggu Verifikasi'],
-            'dibayar' => ['Dibayar'],
-            'diproses' => ['Diproses'],
-            'dikirim' => ['Dikirim'],
-            'selesai' => ['Selesai'],
-            'dibatalkan' => ['Pembayaran Gagal'],
-        ];
+        $statusFilters = $this->orderStatusFilters();
 
         $ordersQuery = Order::with('items.book')
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $userId)
             ->latest();
 
         if ($activePackageStatus !== 'all' && isset($statusFilters[$activePackageStatus])) {
@@ -241,32 +221,18 @@ class CheckoutController extends Controller
 
         $orders = $ordersQuery->paginate(8)->withQueryString();
 
-        $packageStats = [
-            'all' => Order::where('user_id', $request->user()->id)->count(),
-            'menunggu_konfirmasi' => Order::where('user_id', $request->user()->id)
-                ->whereIn('status', ['Menunggu Konfirmasi', 'Menunggu Verifikasi'])
-                ->count(),
-            'dibayar' => Order::where('user_id', $request->user()->id)->where('status', 'Dibayar')->count(),
-            'diproses' => Order::where('user_id', $request->user()->id)->where('status', 'Diproses')->count(),
-            'dikirim' => Order::where('user_id', $request->user()->id)->where('status', 'Dikirim')->count(),
-            'selesai' => Order::where('user_id', $request->user()->id)->where('status', 'Selesai')->count(),
-            'dibatalkan' => Order::where('user_id', $request->user()->id)->where('status', 'Pembayaran Gagal')->count(),
-        ];
-
         return view('orders.index', [
             'orders' => $orders,
             'activePackageStatus' => $activePackageStatus,
-            'packageStats' => $packageStats,
+            'packageStats' => $this->buildPackageStats($userId, $statusFilters),
         ]);
     }
 
     public function confirmReceived(Request $request, Order $order): RedirectResponse
     {
-        if ($order->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->abortIfNotOrderOwner($request, $order);
 
-        if ($order->status !== 'Dikirim') {
+        if ($order->status !== self::ORDER_STATUS_SHIPPED) {
             return back()->with('error', 'Pesanan belum bisa dikonfirmasi selesai.');
         }
 
@@ -275,9 +241,9 @@ class CheckoutController extends Controller
         }
 
         $order->update([
-            'status' => 'Selesai',
+            'status' => self::ORDER_STATUS_DONE,
             'received_at' => now(),
-            'paid_at' => $order->payment_method === 'COD' ? ($order->paid_at ?? now()) : $order->paid_at,
+            'paid_at' => $order->payment_method === self::PAYMENT_COD ? ($order->paid_at ?? now()) : $order->paid_at,
         ]);
 
         return back()->with('success', 'Terima kasih, pesanan sudah ditandai selesai.');
@@ -285,15 +251,13 @@ class CheckoutController extends Controller
 
     public function confirmNotReceived(Request $request, Order $order): RedirectResponse
     {
-        if ($order->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->abortIfNotOrderOwner($request, $order);
 
-        if ($order->payment_method !== 'COD') {
+        if ($order->payment_method !== self::PAYMENT_COD) {
             return back()->with('error', 'Fitur ini khusus untuk pesanan COD.');
         }
 
-        if ($order->status !== 'Dikirim') {
+        if ($order->status !== self::ORDER_STATUS_SHIPPED) {
             return back()->with('error', 'Pesanan belum bisa dikonfirmasi.');
         }
 
@@ -302,7 +266,7 @@ class CheckoutController extends Controller
         }
 
         $order->update([
-            'status' => 'Pembayaran Gagal',
+            'status' => self::ORDER_STATUS_FAILED,
             'received_at' => now(),
         ]);
 
@@ -311,9 +275,7 @@ class CheckoutController extends Controller
 
     public function downloadInvoice(Request $request, Order $order)
     {
-        if ($order->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->abortIfNotOrderOwner($request, $order);
 
         $order->loadMissing(['user', 'items.book']);
 
@@ -369,21 +331,15 @@ class CheckoutController extends Controller
 
             $transactionStatus = (string) ($payload['transaction_status'] ?? '');
             $fraudStatus = (string) ($payload['fraud_status'] ?? '');
-            $paymentType = (string) ($payload['payment_type'] ?? 'MIDTRANS');
+            $paymentType = (string) ($payload['payment_type'] ?? self::PAYMENT_MIDTRANS);
 
-            $nextStatus = $this->resolveOrderStatusFromPaymentStatus($order, $transactionStatus, $fraudStatus);
-
-            $order->update([
-                'status' => $nextStatus,
-                'payment_method' => strtoupper($paymentType),
-                'midtrans_order_id' => (string) ($payload['order_id'] ?? $midtransOrderId),
-                'midtrans_transaction_status' => $transactionStatus ?: $order->midtrans_transaction_status,
-                'midtrans_payment_type' => $paymentType ?: $order->midtrans_payment_type,
-                'midtrans_fraud_status' => $fraudStatus ?: $order->midtrans_fraud_status,
-                'paid_at' => in_array($transactionStatus, ['settlement', 'capture'], true)
-                    ? ($order->paid_at ?? now())
-                    : $order->paid_at,
-            ]);
+            $this->syncPaymentResultToOrder(
+                $order,
+                (string) ($payload['order_id'] ?? $midtransOrderId),
+                $transactionStatus !== '' ? $transactionStatus : (string) $order->midtrans_transaction_status,
+                $fraudStatus !== '' ? $fraudStatus : (string) $order->midtrans_fraud_status,
+                $paymentType !== '' ? $paymentType : (string) $order->midtrans_payment_type,
+            );
         } catch (\Throwable $exception) {
             Log::warning('Failed to sync Midtrans status from redirect', [
                 'order_id' => $midtransOrderId,
@@ -396,12 +352,12 @@ class CheckoutController extends Controller
     {
         Order::query()
             ->where('user_id', $userId)
-            ->where('status', 'Dikirim')
-            ->where('payment_method', '!=', 'COD')
+            ->where('status', self::ORDER_STATUS_SHIPPED)
+            ->where('payment_method', '!=', self::PAYMENT_COD)
             ->whereNotNull('estimated_delivery_at')
             ->where('estimated_delivery_at', '<=', now())
             ->update([
-                'status' => 'Selesai',
+                'status' => self::ORDER_STATUS_DONE,
                 'received_at' => DB::raw('COALESCE(received_at, CURRENT_TIMESTAMP)'),
             ]);
     }
@@ -453,9 +409,10 @@ class CheckoutController extends Controller
             throw new \RuntimeException('Gagal membuat transaksi Midtrans. Redirect URL tidak tersedia.');
         }
 
+        // Begitu token jadi, order kita set fix ke jalur Midtrans biar konsisten.
         $order->update([
-            'status' => 'Menunggu Konfirmasi',
-            'payment_method' => 'MIDTRANS',
+            'status' => self::ORDER_STATUS_WAITING_CONFIRMATION,
+            'payment_method' => self::PAYMENT_MIDTRANS,
             'midtrans_payment_type' => $paymentDetail,
             'midtrans_transaction_id' => $snapResponse->token ?? null,
             'midtrans_order_id' => $midtransOrderId,
@@ -510,16 +467,17 @@ class CheckoutController extends Controller
 
     private function resolveOrderStatusFromPaymentStatus(Order $order, string $transactionStatus, string $fraudStatus): string
     {
-        if (in_array($order->status, ['Diproses', 'Dikirim', 'Selesai'], true)) {
+        // Kalau order udah masuk fase operasional, status payment gak boleh ngacak status ini lagi.
+        if (in_array($order->status, self::FINALIZED_ORDER_STATUSES, true)) {
             return $order->status;
         }
 
         return match ($transactionStatus) {
-            'settlement' => 'Dibayar',
-            'capture' => $fraudStatus === 'challenge' ? 'Menunggu Verifikasi' : 'Dibayar',
-            'pending' => 'Menunggu Konfirmasi',
-            'deny', 'cancel', 'expire' => 'Pembayaran Gagal',
-            'refund', 'partial_refund' => 'Refund',
+            'settlement' => self::ORDER_STATUS_PAID,
+            'capture' => $fraudStatus === 'challenge' ? self::ORDER_STATUS_WAITING_VERIFICATION : self::ORDER_STATUS_PAID,
+            'pending' => self::ORDER_STATUS_WAITING_CONFIRMATION,
+            'deny', 'cancel', 'expire' => self::ORDER_STATUS_FAILED,
+            'refund', 'partial_refund' => self::ORDER_STATUS_REFUND,
             default => $order->status,
         };
     }
@@ -527,5 +485,111 @@ class CheckoutController extends Controller
     private function generateInvoiceNumber(Order $order): string
     {
         return 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function validateCheckoutPayload(Request $request): array
+    {
+        return $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'shipping_address' => ['required', 'string', 'max:500'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'payment_method' => ['required', 'in:COD,MIDTRANS'],
+            'payment_detail' => ['required', 'in:card,cod'],
+        ]);
+    }
+
+    private function createOrderFromCart(Request $request, array $validated, array $cart): Order
+    {
+        return DB::transaction(function () use ($request, $validated, $cart): Order {
+            $paymentMethod = (string) $validated['payment_method'];
+            $paymentDetail = (string) $validated['payment_detail'];
+
+            $order = Order::create([
+                'user_id' => $request->user()->id,
+                'order_code' => 'ORD-' . now()->format('YmdHis') . '-' . random_int(100, 999),
+                'total_price' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
+                'payment_method' => $paymentMethod,
+                'midtrans_payment_type' => $paymentMethod === self::PAYMENT_MIDTRANS ? $paymentDetail : null,
+                'status' => self::ORDER_STATUS_WAITING_CONFIRMATION,
+                'phone' => $validated['phone'],
+                'shipping_address' => $validated['shipping_address'],
+                'note' => $validated['note'] ?? null,
+            ]);
+
+            foreach ($cart as $item) {
+                $book = Book::findOrFail($item['book_id']);
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'book_id' => $book->id,
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'subtotal' => $item['quantity'] * $item['price'],
+                ]);
+            }
+
+            return $order;
+        });
+    }
+
+    private function canRetryMidtransPayment(Order $order): bool
+    {
+        return in_array((string) $order->midtrans_transaction_status, self::RETRYABLE_MIDTRANS_STATUSES, true)
+            || in_array((string) $order->status, self::RETRYABLE_ORDER_STATUSES, true);
+    }
+
+    private function abortIfNotOrderOwner(Request $request, Order $order): void
+    {
+        if ($order->user_id !== $request->user()->id) {
+            abort(403);
+        }
+    }
+
+    private function syncPaymentResultToOrder(
+        Order $order,
+        string $midtransOrderId,
+        string $transactionStatus,
+        string $fraudStatus,
+        string $paymentType,
+    ): void {
+        $order->update([
+            'status' => $this->resolveOrderStatusFromPaymentStatus($order, $transactionStatus, $fraudStatus),
+            'payment_method' => self::PAYMENT_MIDTRANS,
+            'midtrans_order_id' => $midtransOrderId,
+            'midtrans_transaction_status' => $transactionStatus,
+            'midtrans_payment_type' => $paymentType,
+            'midtrans_fraud_status' => $fraudStatus ?: null,
+            'paid_at' => in_array($transactionStatus, ['settlement', 'capture'], true)
+                ? ($order->paid_at ?? now())
+                : $order->paid_at,
+        ]);
+    }
+
+    private function orderStatusFilters(): array
+    {
+        return [
+            'all' => null,
+            'menunggu_konfirmasi' => [self::ORDER_STATUS_WAITING_CONFIRMATION, self::ORDER_STATUS_WAITING_VERIFICATION],
+            'dibayar' => [self::ORDER_STATUS_PAID],
+            'diproses' => [self::ORDER_STATUS_PROCESSED],
+            'dikirim' => [self::ORDER_STATUS_SHIPPED],
+            'selesai' => [self::ORDER_STATUS_DONE],
+            'dibatalkan' => [self::ORDER_STATUS_FAILED],
+        ];
+    }
+
+    private function buildPackageStats(int $userId, array $statusFilters): array
+    {
+        return collect($statusFilters)
+            ->mapWithKeys(function ($statuses, $key) use ($userId): array {
+                $query = Order::query()->where('user_id', $userId);
+
+                if (is_array($statuses)) {
+                    $query->whereIn('status', $statuses);
+                }
+
+                return [$key => $query->count()];
+            })
+            ->all();
     }
 }

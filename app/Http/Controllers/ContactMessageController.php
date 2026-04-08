@@ -9,16 +9,14 @@ use Illuminate\Support\Facades\Auth;
 
 class ContactMessageController extends Controller
 {
+    // Contact form hanya bisa diisi user biasa, admin ngga boleh.
     public function store(Request $request): RedirectResponse
     {
-        if (! Auth::check() || Auth::user()?->is_admin) {
+        if (!Auth::check() || Auth::user()?->is_admin) {
             return redirect()->route('login');
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'message' => ['required', 'string', 'max:5000'],
-        ]);
+        $validated = $this->validateContactMessage($request);
 
         ContactMessage::create([
             'user_id' => Auth::id(),
@@ -28,5 +26,13 @@ class ContactMessageController extends Controller
         ]);
 
         return back()->with('success', 'Pesan kamu sudah terkirim ke admin.');
+    }
+
+    private function validateContactMessage(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'message' => ['required', 'string', 'max:5000'],
+        ]);
     }
 }
