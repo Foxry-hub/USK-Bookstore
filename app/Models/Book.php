@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Book extends Model
 {
-    protected $fillable = ['category_id', 'title', 'author', 'price', 'image_url', 'image_urls', 'description', 'detail'];
+    protected $fillable = ['category_id', 'title', 'isbn', 'author', 'price', 'image_url', 'image_urls', 'description', 'detail'];
 
     protected $casts = [
         'image_urls' => 'array',

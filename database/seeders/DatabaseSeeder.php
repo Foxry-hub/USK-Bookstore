@@ -171,7 +171,7 @@ class DatabaseSeeder extends Seeder
 
         $seedBooks = array_merge($featuredBooks, $dummyBooks);
 
-        foreach ($seedBooks as $book) {
+        foreach ($seedBooks as $index => $book) {
             $category = $categories->firstWhere('slug', $book['category_slug']);
 
             if (! $category) {
@@ -184,11 +184,13 @@ class DatabaseSeeder extends Seeder
                 $book['author'],
                 $book['category_slug']
             );
+            $isbn = $book['isbn'] ?? $this->generateIsbn13FromNumber($index + 1);
 
             Book::updateOrCreate(
                 ['title' => $book['title']],
                 [
                     'author' => $book['author'],
+                    'isbn' => $isbn,
                     'price' => $book['price'],
                     'image_url' => $images['image_url'],
                     'image_urls' => $images['image_urls'],
@@ -263,5 +265,21 @@ class DatabaseSeeder extends Seeder
             'image_url' => $main,
             'image_urls' => array_values(array_unique($extras)),
         ];
+    }
+
+    private function generateIsbn13FromNumber(int $number): string
+    {
+        // Prefix 978 + 9 digit body + 1 digit checksum untuk ISBN-13 valid.
+        $body = '978' . str_pad((string) $number, 9, '0', STR_PAD_LEFT);
+
+        $sum = 0;
+        for ($i = 0; $i < 12; $i++) {
+            $digit = (int) $body[$i];
+            $sum += ($i % 2 === 0) ? $digit : ($digit * 3);
+        }
+
+        $checkDigit = (10 - ($sum % 10)) % 10;
+
+        return $body . (string) $checkDigit;
     }
 }

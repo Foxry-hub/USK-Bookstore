@@ -19,19 +19,19 @@
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Kategori</p>
-                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $totalCategories }}</p>
+                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $stats['totalCategories'] ?? 0 }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Buku</p>
-                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $totalBooks }}</p>
+                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $stats['totalBooks'] ?? 0 }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total User</p>
-                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $totalUsers }}</p>
+                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $stats['totalUsers'] ?? 0 }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Pesanan</p>
-                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $totalOrders }}</p>
+                <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ $stats['totalOrders'] ?? 0 }}</p>
             </div>
         </div>
 

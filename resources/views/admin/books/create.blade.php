@@ -17,6 +17,11 @@
                 @error('author') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">ISBN</label>
+                <input type="text" name="isbn" value="{{ old('isbn') }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" placeholder="978xxxxxxxxxx" required>
+                @error('isbn') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
                 <label class="mb-1 block text-sm font-semibold text-slate-700">Kategori</label>
                 <select name="category_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" required>
                     <option value="">Pilih kategori</option>

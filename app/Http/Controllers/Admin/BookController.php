@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class BookController extends Controller
@@ -60,6 +61,7 @@ class BookController extends Controller
         $validated = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'title' => ['required', 'string', 'max:180'],
+            'isbn' => ['required', 'string', 'max:20', Rule::unique('books', 'isbn')->ignore($book?->id)],
             'author' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:1000'],
             'image_url' => ['nullable', 'url', 'max:500'],

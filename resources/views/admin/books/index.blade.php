@@ -12,6 +12,7 @@
                 <thead class="bg-slate-100 text-left text-slate-700">
                     <tr>
                         <th class="px-4 py-3">Judul</th>
+                        <th class="px-4 py-3">ISBN</th>
                         <th class="px-4 py-3">Penulis</th>
                         <th class="px-4 py-3">Kategori</th>
                         <th class="px-4 py-3">Harga</th>
@@ -22,6 +23,7 @@
                     @forelse ($books as $book)
                         <tr class="border-t border-slate-100">
                             <td class="px-4 py-3 font-semibold text-slate-900">{{ $book->title }}</td>
+                            <td class="px-4 py-3">{{ $book->isbn }}</td>
                             <td class="px-4 py-3">{{ $book->author }}</td>
                             <td class="px-4 py-3">{{ $book->category->name }}</td>
                             <td class="px-4 py-3">Rp {{ number_format($book->price, 0, ',', '.') }}</td>
@@ -38,7 +40,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">Belum ada data buku.</td>
+                            <td colspan="6" class="px-4 py-8 text-center text-slate-500">Belum ada data buku.</td>
                         </tr>
                     @endforelse
                 </tbody>
