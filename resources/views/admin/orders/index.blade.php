@@ -119,7 +119,14 @@
 
                     <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
                         @if ($isCashOrder && $order->status === 'Menunggu Pembayaran')
-                            <button type="button" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700" onclick="openCashPaymentModal('{{ $order->id }}', {{ $order->total_price }})">Konfirmasi Pembayaran Tunai</button>
+                            <button
+                                type="button"
+                                class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                data-cash-order-id="{{ $order->id }}"
+                                data-cash-total="{{ $order->total_price }}"
+                            >
+                                Konfirmasi Pembayaran Tunai
+                            </button>
                         @elseif (! $isCashOrder && ($order->status === 'Menunggu Konfirmasi' || $order->status === 'Dibayar' || $order->status === 'Pembayaran Gagal'))
                             <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
                                 @csrf
@@ -300,6 +307,19 @@
             currentOrderData = null;
             currentAmount = '';
         }
+
+        document.querySelectorAll('[data-cash-order-id]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const orderId = button.dataset.cashOrderId;
+                const totalAmount = Number(button.dataset.cashTotal || 0);
+
+                if (!orderId) {
+                    return;
+                }
+
+                openCashPaymentModal(orderId, totalAmount);
+            });
+        });
 
         function renderOrderPreview(order) {
             // Customer Info
