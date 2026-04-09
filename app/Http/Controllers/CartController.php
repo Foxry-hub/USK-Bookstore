@@ -44,6 +44,32 @@ class CartController extends Controller
     {
         $cart = $this->getCart($request);
 
+        if ((int) $book->stock <= 0) {
+            $message = 'Stok buku habis, tidak bisa ditambahkan ke keranjang.';
+
+            if ($request->expectsJson()) {
+                return response()->json(array_merge($this->cartPayload($cart), [
+                    'message' => $message,
+                ]), 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
+        $nextQuantity = isset($cart[$book->id]) ? ((int) $cart[$book->id]['quantity'] + 1) : 1;
+
+        if ($nextQuantity > (int) $book->stock) {
+            $message = 'Jumlah di keranjang melebihi stok tersedia (' . $book->stock . ').';
+
+            if ($request->expectsJson()) {
+                return response()->json(array_merge($this->cartPayload($cart), [
+                    'message' => $message,
+                ]), 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
         if (isset($cart[$book->id])) {
             $cart[$book->id]['quantity']++;
         } else {
@@ -91,6 +117,35 @@ class CartController extends Controller
                 }
 
                 return back()->with('success', 'Item di keranjang berhasil dihapus.');
+            }
+
+            $book = Book::query()->find($bookId);
+
+            if ($book === null || (int) $book->stock <= 0) {
+                $message = 'Buku sudah tidak tersedia, silakan hapus dari keranjang.';
+
+                if ($request->expectsJson()) {
+                    return response()->json(array_merge($this->cartPayload($cart), [
+                        'message' => $message,
+                        'book_id' => $bookId,
+                    ]), 422);
+                }
+
+                return back()->with('error', $message);
+            }
+
+            if ($validated['quantity'] > (int) $book->stock) {
+                $message = 'Stok tersisa ' . $book->stock . ' untuk buku ini.';
+
+                if ($request->expectsJson()) {
+                    return response()->json(array_merge($this->cartPayload($cart), [
+                        'message' => $message,
+                        'book_id' => $bookId,
+                        'max_quantity' => (int) $book->stock,
+                    ]), 422);
+                }
+
+                return back()->with('error', $message);
             }
 
             $cart[$bookId]['quantity'] = $validated['quantity'];

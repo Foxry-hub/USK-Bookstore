@@ -64,6 +64,7 @@ class BookController extends Controller
             'isbn' => ['required', 'string', 'max:20', Rule::unique('books', 'isbn')->ignore($book?->id)],
             'author' => ['required', 'string', 'max:150'],
             'price' => ['required', 'numeric', 'min:1000'],
+            'stock' => ['required', 'integer', 'min:0'],
             'image_url' => ['nullable', 'url', 'max:500'],
             'existing_image_urls' => ['nullable', 'array'],
             'existing_image_urls.*' => ['nullable', 'url', 'max:500'],

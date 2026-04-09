@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Midtrans\Config as MidtransConfig;
 use Midtrans\Snap;
@@ -510,6 +511,51 @@ class CheckoutController extends Controller
             $paymentMethod = (string) $validated['payment_method'];
             $paymentDetail = (string) $validated['payment_detail'];
 
+            $bookIds = collect($cart)->pluck('book_id')->map(fn ($id) => (int) $id)->all();
+            $books = Book::query()
+                ->whereIn('id', $bookIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $normalizedCartItems = [];
+            $computedOrderTotal = 0.0;
+
+            foreach ($cart as $item) {
+                $bookId = (int) ($item['book_id'] ?? 0);
+                $quantity = (int) ($item['quantity'] ?? 0);
+                $book = $books->get($bookId);
+
+                if ($book === null) {
+                    throw ValidationException::withMessages([
+                        'cart' => 'Ada buku di keranjang yang sudah tidak tersedia.',
+                    ]);
+                }
+
+                if ($quantity <= 0) {
+                    throw ValidationException::withMessages([
+                        'cart' => 'Jumlah item di keranjang tidak valid.',
+                    ]);
+                }
+
+                if ((int) $book->stock < $quantity) {
+                    throw ValidationException::withMessages([
+                        'cart' => "Stok buku {$book->title} tersisa {$book->stock}. Silakan sesuaikan jumlah pesanan.",
+                    ]);
+                }
+
+                $price = (float) $book->price;
+                $subtotal = $price * $quantity;
+                $computedOrderTotal += $subtotal;
+
+                $normalizedCartItems[] = [
+                    'book' => $book,
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'subtotal' => $subtotal,
+                ];
+            }
+
             // Tentukan status berdasarkan metode pembayaran
             $status = self::ORDER_STATUS_WAITING_CONFIRMATION;
             if ($paymentMethod === self::PAYMENT_CASH) {
@@ -519,7 +565,7 @@ class CheckoutController extends Controller
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'order_code' => 'ORD-' . now()->format('YmdHis') . '-' . random_int(100, 999),
-                'total_price' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
+                'total_price' => $computedOrderTotal,
                 'payment_method' => $paymentMethod,
                 'midtrans_payment_type' => $paymentMethod === self::PAYMENT_MIDTRANS ? $paymentDetail : null,
                 'status' => $status,
@@ -528,16 +574,16 @@ class CheckoutController extends Controller
                 'note' => $validated['note'] ?? null,
             ]);
 
-            foreach ($cart as $item) {
-                $book = Book::findOrFail($item['book_id']);
-
+            foreach ($normalizedCartItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'book_id' => $book->id,
+                    'book_id' => $item['book']->id,
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
-                    'subtotal' => $item['quantity'] * $item['price'],
+                    'subtotal' => $item['subtotal'],
                 ]);
+
+                $item['book']->decrement('stock', $item['quantity']);
             }
 
             return $order;

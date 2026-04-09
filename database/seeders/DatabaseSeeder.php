@@ -66,6 +66,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Atomic Habits',
                 'author' => 'James Clear',
                 'price' => 98000,
+                'stock' => 42,
                 'image_url' => 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=900&q=80',
                 'image_urls' => [
                     'https://images.unsplash.com/photo-1455885666463-9bdf805818c0?auto=format&fit=crop&w=900&q=80',
@@ -77,6 +78,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'The Psychology of Money',
                 'author' => 'Morgan Housel',
                 'price' => 110000,
+                'stock' => 36,
                 'image_url' => 'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&w=900&q=80',
                 'image_urls' => [
                     'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=900&q=80',
@@ -88,6 +90,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Clean Code',
                 'author' => 'Robert C. Martin',
                 'price' => 145000,
+                'stock' => 28,
                 'image_url' => 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=900&q=80',
                 'image_urls' => [
                     'https://images.unsplash.com/photo-1541963463532-d68292c34b19?auto=format&fit=crop&w=900&q=80',
@@ -99,6 +102,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'The Midnight Library',
                 'author' => 'Matt Haig',
                 'price' => 92000,
+                'stock' => 31,
                 'image_url' => 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=900&q=80',
                 'image_urls' => [
                     'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=900&q=80',
@@ -165,6 +169,7 @@ class DatabaseSeeder extends Seeder
                 'title' => $title,
                 'author' => $profile['authors'][($i - 1) % count($profile['authors'])],
                 'price' => random_int($minPrice, $maxPrice),
+                'stock' => random_int(12, 95),
                 'category_slug' => $categorySlug,
             ];
         }
@@ -192,6 +197,7 @@ class DatabaseSeeder extends Seeder
                     'author' => $book['author'],
                     'isbn' => $isbn,
                     'price' => $book['price'],
+                    'stock' => (int) ($book['stock'] ?? random_int(10, 80)),
                     'image_url' => $images['image_url'],
                     'image_urls' => $images['image_urls'],
                     'description' => $narrative['description'],

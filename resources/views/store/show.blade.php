@@ -65,8 +65,12 @@
                         <span class="text-4xl font-extrabold text-slate-900">Rp {{ number_format($book->price, 0, ',', '.') }}</span>
                     </div>
                     <div class="flex items-center gap-2 text-sm">
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span class="text-green-700 font-semibold">Tersedia (25 stok)</span>
+                        <div class="h-3 w-3 rounded-full {{ $book->stock > 0 ? 'bg-green-500' : 'bg-rose-500' }}"></div>
+                        @if ($book->stock > 0)
+                            <span class="font-semibold text-green-700">Tersedia ({{ $book->stock }} stok)</span>
+                        @else
+                            <span class="font-semibold text-rose-700">Stok Habis</span>
+                        @endif
                     </div>
                 </div>
 
@@ -86,12 +90,18 @@
                 <div class="flex gap-3 pt-2">
                     @auth
                         @if (!auth()->user()->isAdmin())
-                            <form action="{{ route('cart.add', $book) }}" method="POST" class="w-full" data-cart-add>
-                                @csrf
-                                <button type="submit" class="w-full rounded-xl bg-brand-500 px-6 py-3 font-semibold text-white hover:bg-brand-600 transition">
-                                    Tambah ke Keranjang
+                            @if ($book->stock > 0)
+                                <form action="{{ route('cart.add', $book) }}" method="POST" class="w-full" data-cart-add>
+                                    @csrf
+                                    <button type="submit" class="w-full rounded-xl bg-brand-500 px-6 py-3 font-semibold text-white hover:bg-brand-600 transition">
+                                        Tambah ke Keranjang
+                                    </button>
+                                </form>
+                            @else
+                                <button type="button" disabled class="w-full cursor-not-allowed rounded-xl bg-slate-300 px-6 py-3 font-semibold text-slate-600">
+                                    Stok Habis
                                 </button>
-                            </form>
+                            @endif
                         @else
                             <a href="{{ route('admin.books.edit', $book) }}" class="w-full rounded-xl bg-slate-900 px-6 py-3 text-center font-semibold text-white hover:bg-slate-800 transition">
                                 Edit Buku
@@ -171,15 +181,24 @@
                                 </a>
                                 <p class="mt-1 text-sm text-slate-600">{{ $relatedBook->author }}</p>
                                 <p class="mt-3 text-lg font-extrabold text-slate-900">Rp {{ number_format($relatedBook->price, 0, ',', '.') }}</p>
+                                <p class="mt-1 text-xs font-semibold {{ $relatedBook->stock > 0 ? 'text-emerald-700' : 'text-rose-700' }}">
+                                    {{ $relatedBook->stock > 0 ? 'Stok: ' . $relatedBook->stock : 'Stok Habis' }}
+                                </p>
 
                                 @auth
                                     @if (!auth()->user()->isAdmin())
-                                        <form action="{{ route('cart.add', $relatedBook) }}" method="POST" class="mt-3" data-cart-add>
-                                            @csrf
-                                            <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition">
-                                                Tambah ke Keranjang
+                                        @if ($relatedBook->stock > 0)
+                                            <form action="{{ route('cart.add', $relatedBook) }}" method="POST" class="mt-3" data-cart-add>
+                                                @csrf
+                                                <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition">
+                                                    Tambah ke Keranjang
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button" disabled class="mt-3 w-full cursor-not-allowed rounded-xl bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">
+                                                Stok Habis
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
                                 @else
                                     <a href="{{ route('login') }}" class="mt-3 block rounded-xl border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700">

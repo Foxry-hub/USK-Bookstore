@@ -36,6 +36,11 @@
                 <input type="number" name="price" value="{{ old('price') }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" required>
                 @error('price') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Stock</label>
+                <input type="number" name="stock" min="0" value="{{ old('stock', 0) }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" required>
+                @error('stock') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
             <div class="md:col-span-2">
                 <label class="mb-1 block text-sm font-semibold text-slate-700">URL Gambar Utama</label>
                 <input type="url" name="image_url" value="{{ old('image_url') }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" placeholder="https://images.unsplash.com/...">

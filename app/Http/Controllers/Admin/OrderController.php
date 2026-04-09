@@ -80,8 +80,9 @@ class OrderController extends Controller
             'cash_amount_paid' => $amountPaid,
             'cash_change' => $change,
             'cash_payment_confirmed_at' => now(),
-            'status' => self::ORDER_STATUS_PAID,
+            'status' => self::ORDER_STATUS_DONE,
             'paid_at' => now(),
+            'received_at' => now(),
         ]);
 
         return back()->with('success', "Pembayaran tunai dikonfirmasi. Kembalian: Rp " . number_format($change, 0, ',', '.'));

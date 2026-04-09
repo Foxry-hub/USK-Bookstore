@@ -170,22 +170,24 @@
                     </summary>
 
                     <div class="order-detail-content border-t border-slate-100 p-5">
-                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-sm font-semibold text-slate-800">Progress Pesanan</p>
-                            <div class="relative mt-3">
-                                <div class="h-1 rounded-full bg-slate-200"></div>
-                                <div class="absolute left-0 top-0 h-1 rounded-full bg-emerald-500 transition-all duration-300 {{ $progressWidthClass }}"></div>
+                        @if (strtoupper((string) $order->payment_method) !== 'CASH')
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-sm font-semibold text-slate-800">Progress Pesanan</p>
+                                <div class="relative mt-3">
+                                    <div class="h-1 rounded-full bg-slate-200"></div>
+                                    <div class="absolute left-0 top-0 h-1 rounded-full bg-emerald-500 transition-all duration-300 {{ $progressWidthClass }}"></div>
+                                </div>
+                                <div class="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                                    @foreach ($progressStepLabels as $index => $stepLabel)
+                                        @php $stepNumber = $index + 1; @endphp
+                                        <div>
+                                            <span class="mx-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold {{ $currentStep >= $stepNumber ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500 border border-slate-300' }}">{{ $stepNumber }}</span>
+                                            <p class="mt-1 {{ $currentStep >= $stepNumber ? 'font-semibold text-slate-900' : 'text-slate-500' }}">{{ $stepLabel }}</p>
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div class="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
-                                @foreach ($progressStepLabels as $index => $stepLabel)
-                                    @php $stepNumber = $index + 1; @endphp
-                                    <div>
-                                        <span class="mx-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold {{ $currentStep >= $stepNumber ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500 border border-slate-300' }}">{{ $stepNumber }}</span>
-                                        <p class="mt-1 {{ $currentStep >= $stepNumber ? 'font-semibold text-slate-900' : 'text-slate-500' }}">{{ $stepLabel }}</p>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
+                        @endif
 
                         <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
                             <div class="rounded-xl border border-slate-200 bg-white p-4">

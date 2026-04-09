@@ -81,13 +81,22 @@
                                         <a href="{{ route('store.show', $book) }}" class="line-clamp-2 text-base font-bold text-slate-900 hover:text-brand-500">{{ $book->title }}</a>
                                         <p class="mt-1 text-sm text-slate-600">{{ $book->author }}</p>
                                         <p class="mt-3 text-lg font-extrabold text-slate-900">Rp {{ number_format($book->price, 0, ',', '.') }}</p>
+                                        <p class="mt-1 text-xs font-semibold {{ $book->stock > 0 ? 'text-emerald-700' : 'text-rose-700' }}">
+                                            {{ $book->stock > 0 ? 'Stok: ' . $book->stock : 'Stok Habis' }}
+                                        </p>
 
                                         @auth
                                             @if (!auth()->user()->isAdmin())
-                                                <form action="{{ route('cart.add', $book) }}" method="POST" class="mt-auto pt-3" data-cart-add>
-                                                    @csrf
-                                                    <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600">Tambah ke Keranjang</button>
-                                                </form>
+                                                @if ($book->stock > 0)
+                                                    <form action="{{ route('cart.add', $book) }}" method="POST" class="mt-auto pt-3" data-cart-add>
+                                                        @csrf
+                                                        <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600">Tambah ke Keranjang</button>
+                                                    </form>
+                                                @else
+                                                    <button type="button" disabled class="mt-auto w-full cursor-not-allowed rounded-xl bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">
+                                                        Stok Habis
+                                                    </button>
+                                                @endif
                                             @endif
                                         @else
                                             <a href="{{ route('login') }}" class="mt-auto block pt-3 text-center">
@@ -135,13 +144,22 @@
                                         <a href="{{ route('store.show', $book) }}" class="line-clamp-2 text-base font-bold text-slate-900 hover:text-brand-500">{{ $book->title }}</a>
                                         <p class="mt-1 text-sm text-slate-600">{{ $book->author }}</p>
                                         <p class="mt-3 text-lg font-extrabold text-slate-900">Rp {{ number_format($book->price, 0, ',', '.') }}</p>
+                                        <p class="mt-1 text-xs font-semibold {{ $book->stock > 0 ? 'text-emerald-700' : 'text-rose-700' }}">
+                                            {{ $book->stock > 0 ? 'Stok: ' . $book->stock : 'Stok Habis' }}
+                                        </p>
 
                                         @auth
                                             @if (!auth()->user()->isAdmin())
-                                                <form action="{{ route('cart.add', $book) }}" method="POST" class="mt-auto pt-3" data-cart-add>
-                                                    @csrf
-                                                    <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600">Tambah ke Keranjang</button>
-                                                </form>
+                                                @if ($book->stock > 0)
+                                                    <form action="{{ route('cart.add', $book) }}" method="POST" class="mt-auto pt-3" data-cart-add>
+                                                        @csrf
+                                                        <button type="submit" class="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600">Tambah ke Keranjang</button>
+                                                    </form>
+                                                @else
+                                                    <button type="button" disabled class="mt-auto w-full cursor-not-allowed rounded-xl bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">
+                                                        Stok Habis
+                                                    </button>
+                                                @endif
                                             @endif
                                         @else
                                             <a href="{{ route('login') }}" class="mt-auto block pt-3 text-center">
