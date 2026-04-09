@@ -68,7 +68,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{order}/preview', [AdminOrderController::class, 'preview'])->name('orders.preview');
     Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::post('/orders/{order}/confirm-cash-payment', [AdminOrderController::class, 'confirmCashPayment'])->name('orders.confirm-cash-payment');
     Route::get('/reports/financial', [AdminFinancialReportController::class, 'index'])->name('reports.financial');
     Route::get('/reports/financial/download', [AdminFinancialReportController::class, 'downloadPdf'])->name('reports.financial.download');
 

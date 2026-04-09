@@ -26,6 +26,9 @@ class Order extends Model
         'estimated_delivery_at',
         'received_at',
         'paid_at',
+        'cash_amount_paid',
+        'cash_change',
+        'cash_payment_confirmed_at',
     ];
 
     protected $casts = [
@@ -33,6 +36,7 @@ class Order extends Model
         'estimated_delivery_at' => 'datetime',
         'received_at' => 'datetime',
         'paid_at' => 'datetime',
+        'cash_payment_confirmed_at' => 'datetime',
     ];
 
     /**

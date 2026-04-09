@@ -25,6 +25,8 @@ class CheckoutController extends Controller
 
     private const PAYMENT_MIDTRANS = 'MIDTRANS';
 
+    private const PAYMENT_CASH = 'CASH';
+
     private const ORDER_STATUS_WAITING_CONFIRMATION = 'Menunggu Konfirmasi';
 
     private const ORDER_STATUS_WAITING_VERIFICATION = 'Menunggu Verifikasi';
@@ -106,7 +108,11 @@ class CheckoutController extends Controller
             return redirect()->away($midtransRedirectUrl)->with('success', 'Pesanan berhasil dibuat.');
         }
 
-        return redirect()->route('orders.index')->with('success', 'Checkout COD berhasil, pesanan kamu sudah kami catat.');
+        $successMessage = $paymentMethod === self::PAYMENT_CASH 
+            ? 'Checkout berhasil, pesanan kamu sudah kami catat. Admin akan memproses pembayaran tunai kamu.'
+            : 'Checkout COD berhasil, pesanan kamu sudah kami catat.';
+
+        return redirect()->route('orders.index')->with('success', $successMessage);
     }
 
     public function pay(Request $request, Order $order): RedirectResponse
@@ -493,8 +499,8 @@ class CheckoutController extends Controller
             'phone' => ['required', 'string', 'max:20'],
             'shipping_address' => ['required', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:500'],
-            'payment_method' => ['required', 'in:COD,MIDTRANS'],
-            'payment_detail' => ['required', 'in:card,cod'],
+            'payment_method' => ['required', 'in:COD,MIDTRANS,CASH'],
+            'payment_detail' => ['required', 'in:card,cod,cash'],
         ]);
     }
 
@@ -504,13 +510,19 @@ class CheckoutController extends Controller
             $paymentMethod = (string) $validated['payment_method'];
             $paymentDetail = (string) $validated['payment_detail'];
 
+            // Tentukan status berdasarkan metode pembayaran
+            $status = self::ORDER_STATUS_WAITING_CONFIRMATION;
+            if ($paymentMethod === self::PAYMENT_CASH) {
+                $status = self::ORDER_STATUS_WAITING_PAYMENT; // Tunggu admin konfirmasi pembayaran
+            }
+
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'order_code' => 'ORD-' . now()->format('YmdHis') . '-' . random_int(100, 999),
                 'total_price' => collect($cart)->sum(fn (array $item): float => $item['price'] * $item['quantity']),
                 'payment_method' => $paymentMethod,
                 'midtrans_payment_type' => $paymentMethod === self::PAYMENT_MIDTRANS ? $paymentDetail : null,
-                'status' => self::ORDER_STATUS_WAITING_CONFIRMATION,
+                'status' => $status,
                 'phone' => $validated['phone'],
                 'shipping_address' => $validated['shipping_address'],
                 'note' => $validated['note'] ?? null,

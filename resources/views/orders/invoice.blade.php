@@ -279,12 +279,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($order->items as $item)
-                        <tr>
-                            <td>{{ $item->book->title ?? 'Buku tidak ditemukan' }}</td>
-                            <td class="text-right">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
-                            <td class="text-right">{{ $item->quantity }}</td>
-                            <td class="text-right">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                                <table class="summary">
+                                    <tr class="grand-total">
+                                        <td class="summary-label">Total Harga</td>
+                                        <td class="summary-value">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
+                                    </tr>
+                                    @if ($order->payment_method === 'CASH' && $order->cash_payment_confirmed_at)
+                                        <tr>
+                                            <td class="summary-label">Uang Diterima</td>
+                                            <td class="summary-value">Rp {{ number_format($order->cash_amount_paid, 0, ',', '.') }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="summary-label">Kembalian</td>
+                                            <td class="summary-value">Rp {{ number_format($order->cash_change, 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endif
+                                </table>
                         </tr>
                     @endforeach
                 </tbody>

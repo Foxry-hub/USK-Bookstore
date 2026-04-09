@@ -101,12 +101,12 @@
                     <div>
                         @php
                             $oldMethod = old('payment_method', 'MIDTRANS');
-                            $oldDetail = old('payment_detail', $oldMethod === 'COD' ? 'cod' : 'card');
+                            $oldDetail = old('payment_detail', $oldMethod === 'COD' ? 'cod' : ($oldMethod === 'CASH' ? 'cash' : 'card'));
                         @endphp
                         <input type="hidden" name="payment_method" id="payment-method-input" value="{{ $oldMethod }}">
 
                         <p class="mb-3 text-sm font-semibold text-slate-800">Payment details</p>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <label class="pay-option group flex h-full min-w-0 cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
                                 <input type="radio" name="payment_detail" value="card" class="sr-only" @checked($oldDetail === 'card')>
                                 <div class="flex w-full items-start justify-between gap-3">
@@ -120,6 +120,25 @@
                                         <span class="min-w-0">
                                             <span class="block text-sm font-semibold text-slate-800">Debit/Credit Card</span>
                                             <span class="mt-1 block text-xs leading-snug text-slate-500">Bayar pakai kartu debit atau credit.</span>
+                                        </span>
+                                    </div>
+                                    <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
+                                </div>
+                            </label>
+
+                            <label class="pay-option group flex h-full min-w-0 cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 hover:border-brand-400" data-pay-option>
+                                <input type="radio" name="payment_detail" value="cash" class="sr-only" @checked($oldDetail === 'cash')>
+                                <div class="flex w-full items-start justify-between gap-3">
+                                    <div class="flex min-w-0 items-start gap-3">
+                                        <span class="pay-icon mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M9 9h6" />
+                                            </svg>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold text-slate-800">Bayar Tunai</span>
+                                            <span class="mt-1 block text-xs leading-snug text-slate-500">Bayar tunai secara offline.</span>
                                         </span>
                                     </div>
                                     <span class="pay-option-dot mt-1 inline-flex h-5 w-5 rounded-full border border-slate-300"></span>
@@ -252,7 +271,11 @@
             return;
         }
 
-        const mapDetailToMethod = (detail) => detail === 'cod' ? 'COD' : 'MIDTRANS';
+        const mapDetailToMethod = (detail) => {
+            if (detail === 'cod') return 'COD';
+            if (detail === 'cash') return 'CASH';
+            return 'MIDTRANS';
+        };
 
         const syncPaymentOptionState = () => {
             paymentRadios.forEach((radio) => {

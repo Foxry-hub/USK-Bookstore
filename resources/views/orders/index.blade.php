@@ -220,6 +220,18 @@
                                             <span>Total</span>
                                             <span class="font-bold text-slate-900">Rp {{ number_format($order->total_price, 0, ',', '.') }}</span>
                                         </div>
+                                        @if ($order->payment_method === 'CASH' && $order->cash_payment_confirmed_at)
+                                            <div class="border-t border-slate-200 pt-2">
+                                                <div class="flex items-center justify-between text-slate-600">
+                                                    <span>Uang Diterima</span>
+                                                    <span class="font-semibold text-slate-900">Rp {{ number_format($order->cash_amount_paid, 0, ',', '.') }}</span>
+                                                </div>
+                                                <div class="flex items-center justify-between text-slate-600">
+                                                    <span>Kembalian</span>
+                                                    <span class="font-semibold text-emerald-600">Rp {{ number_format($order->cash_change, 0, ',', '.') }}</span>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 

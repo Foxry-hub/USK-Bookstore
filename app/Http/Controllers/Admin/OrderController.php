@@ -17,7 +17,11 @@ class OrderController extends Controller
 
     private const ORDER_STATUS_DONE = 'Selesai';
 
+    private const ORDER_STATUS_PAID = 'Dibayar';
+
     private const PAYMENT_COD = 'COD';
+
+    private const PAYMENT_CASH = 'CASH';
 
     public function index(Request $request): View
     {
@@ -51,6 +55,68 @@ class OrderController extends Controller
         $order->update($updateData);
 
         return back()->with('success', 'Status pesanan berhasil diupdate.');
+    }
+
+    public function confirmCashPayment(Request $request, Order $order): RedirectResponse
+    {
+        // Hanya bisa process cash payment untuk CASH payment method
+        if ($order->payment_method !== self::PAYMENT_CASH) {
+            return back()->with('error', 'Pesanan ini bukan metode pembayaran tunai.');
+        }
+
+        // Hanya bisa confirm jika status masih menunggu pembayaran
+        if ($order->status !== 'Menunggu Pembayaran') {
+            return back()->with('error', 'Pesanan sudah tidak dalam status menunggu pembayaran.');
+        }
+
+        $validated = $request->validate([
+            'cash_amount_paid' => ['required', 'numeric', 'min:' . $order->total_price],
+        ]);
+
+        $amountPaid = (float) $validated['cash_amount_paid'];
+        $change = $amountPaid - (float) $order->total_price;
+
+        $order->update([
+            'cash_amount_paid' => $amountPaid,
+            'cash_change' => $change,
+            'cash_payment_confirmed_at' => now(),
+            'status' => self::ORDER_STATUS_PAID,
+            'paid_at' => now(),
+        ]);
+
+        return back()->with('success', "Pembayaran tunai dikonfirmasi. Kembalian: Rp " . number_format($change, 0, ',', '.'));
+    }
+
+    public function preview(Order $order)
+    {
+        $order->load(['user', 'items.book']);
+
+        return response()->json([
+            'success' => true,
+            'order' => [
+                'id' => $order->id,
+                'order_code' => $order->order_code,
+                'total_price' => $order->total_price,
+                'status' => $order->status,
+                'shipping_address' => $order->shipping_address,
+                'note' => $order->note,
+                'user' => [
+                    'name' => $order->user->name,
+                    'email' => $order->user->email,
+                    'phone' => $order->phone,
+                ],
+                'items' => $order->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'subtotal' => $item->subtotal,
+                    'book' => [
+                        'id' => $item->book->id,
+                        'title' => $item->book->title,
+                    ],
+                ]),
+            ],
+        ]);
     }
 
     private function filterOrdersByPaymentStatus($query, string $paymentStatus)
